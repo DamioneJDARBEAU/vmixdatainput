@@ -125,8 +125,8 @@ Latest rows:
   {"draw_date": "2026-10-03", "period": "mid_morning", "play_way_draw_no": 505, ...
   ...
 Draw IDs the feeder would use right now:
-  daily3_morning         905
-  daily3_midday          906
+  pick3_morning          705
+  pick3_midday           706
   ...
   playway_night          508
   lotto                  2101
@@ -140,7 +140,7 @@ WEB_SAMPLE = r"""
 """
 
 PERIODS = ["Morning", "Midday", "Afternoon", "Night"]
-GAMES = [("Daily 3", "daily3"), ("Play Way", "playway"), ("Daily Pick 3", "dailypick3")]
+GAMES = [("Pick 3", "pick3"), ("Play Way", "playway"), ("Cash 4", "cash4")]
 
 
 def story():
@@ -161,8 +161,8 @@ def story():
         ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
         ("LEFTPADDING", (0, 0), (-1, -1), 10)]))
     s += [sample, Spacer(1, 0.5 * inch),
-          p("Covers: Daily 3 (Cash 4), Play Way and Daily Pick 3 (Morning, Midday, "
-            "Afternoon, Night) and Lotto. Super 6 is not included.", SUB),
+          p("Covers: Pick 3, Play Way and Cash 4 (Morning, Midday, Afternoon, "
+            "Night) and Lotto. Super 6 is not included.", SUB),
           PageBreak()]
 
     # ---------------------------------------------------------------- contents
@@ -193,7 +193,7 @@ def story():
               "from the email blast results database in Supabase, the NLA website, or "
               "a manual override - and adds 1.",
               "It writes one small file per game into the <b>output</b> folder, e.g. "
-              "<font face='Courier'>output\\daily3_morning.csv</font>.",
+              "<font face='Courier'>output\\pick3_morning.csv</font>.",
               "Each vMix preset reads its own file through a vMix <b>Data Source</b> "
               "and shows the two values in the title.",
               "Optionally it also types the values straight into the title of "
@@ -226,12 +226,15 @@ def story():
               "<font face='Courier'>claude/vmix-title-date-draw-id-omxzaj</font>).",
               "One vMix preset (.vmix file) per game and time period - 13 in total.",
           ]),
-          table([["Game", "Preset files"],
-                 ["Daily 3", "Daily 3 Morning, Daily 3 Midday, Daily 3 Afternoon, Daily 3 Night"],
-                 ["Play Way", "Play Way Morning, Play Way Midday, Play Way Afternoon, Play Way Night"],
-                 ["Daily Pick 3", "Daily Pick 3 Morning, Daily Pick 3 Midday, "
-                                  "Daily Pick 3 Afternoon, Daily Pick 3 Night"],
-                 ["Lotto", "Lotto"]], [1.4, 5.1]),
+          table([["Game", "Also called", "Preset files (one per draw)"],
+                 ["Pick 3", "Daily 3, Daily Pick 3",
+                  "Morning, Midday, Afternoon, Night"],
+                 ["Play Way", "", "Morning, Midday, Afternoon, Night"],
+                 ["Cash 4", "Daily Cash 4", "Morning, Midday, Afternoon, Night"],
+                 ["Lotto", "", "Lotto"]], [1.2, 1.9, 3.4]),
+          p("A preset file can use any of the game's names, e.g. <i>Daily 3 Night.vmix</i>, "
+            "<i>Pick 3 Night.vmix</i> or <i>Daily Pick 3 Night.vmix</i> are all "
+            "recognised as Pick 3 Night (section 9)."),
           ]
 
     # ---------------------------------------------------------------- 3
@@ -293,8 +296,8 @@ C:\\vMixLotto\\
           ]),
           code("""
 [2026-10-03 09:15:02] Date text: Sat. 3rd Oct. 2026
-[2026-10-03 09:15:03]   daily3_morning         next draw 10452    (supabase)
-[2026-10-03 09:15:03]   daily3_midday          next draw 10453    (supabase)
+[2026-10-03 09:15:03]   pick3_morning          next draw 10452    (supabase)
+[2026-10-03 09:15:03]   pick3_midday           next draw 10453    (supabase)
 ...
 [2026-10-03 09:15:04]   lotto                  next draw 2101     (web)
 [2026-10-03 09:15:04] vMix: pushed playway_night into 'LottoTitle' (preset ...)
@@ -355,9 +358,9 @@ C:\\vMixLotto\\
                "hidden, and nothing can be changed with the key."),
           p("How the draw ID is worked out", H2),
           table([["vMix preset", "Supabase column", "Period"],
-                 ["Daily 3 ... (Cash 4)", "daily_results.cash4_draw_no", ""],
+                 ["Pick 3 / Daily 3 / Daily Pick 3 ...", "daily_results.pick3_draw_no", ""],
                  ["Play Way ...", "daily_results.play_way_draw_no", ""],
-                 ["Daily Pick 3 ...", "daily_results.pick3_draw_no", ""],
+                 ["Cash 4 / Daily Cash 4 ...", "daily_results.cash4_draw_no", ""],
                  ["... Morning", "", "mid_morning"],
                  ["... Midday", "", "midday"],
                  ["... Afternoon", "", "mid_afternoon"],
@@ -437,13 +440,13 @@ C:\\vMixLotto\\
           p("Repeat these steps in each of the 13 presets. Run <b>run_once.bat</b> "
             "first so the files exist."),
           steps([
-              "Open the preset, e.g. <b>Daily 3 Morning.vmix</b>.",
+              "Open the preset, e.g. <b>Pick 3 Morning.vmix</b>.",
               "Open the <b>Data Sources Manager</b>. Depending on your vMix version this "
               "is the <b>Data Sources</b> button at the bottom of the main window, or "
               "under <b>Settings</b>.",
               "Click <b>Add</b>, choose <b>Excel/CSV</b>, and browse to the file for this "
               "preset (table below), e.g. "
-              "<font face='Courier'>C:\\vMixLotto\\output\\daily3_morning.csv</font>. "
+              "<font face='Courier'>C:\\vMixLotto\\output\\pick3_morning.csv</font>. "
               "Click OK.",
               "In the Data Sources Manager, turn on <b>Auto Refresh</b> and set it to "
               "<b>10</b> seconds. Make sure the first row is used as the header "
@@ -480,16 +483,22 @@ C:\\vMixLotto\\
               "In config.json check that <font face='Courier'>\"vmix_api\"</font> has "
               "<font face='Courier'>\"enabled\": true</font> and "
               "<font face='Courier'>\"title_input\": \"LottoTitle\"</font>.",
-              "For every game check <b>preset_match</b>. It must be part of that "
-              "preset's real file name (upper/lower case does not matter). If your "
-              "file is called <i>Dail3 Morning.vmix</i>, use "
-              "<font face='Courier'>\"preset_match\": \"Dail3 Morning\"</font>.",
+              "Each game has a <b>preset_match</b> list of the names its preset file "
+              "may have. Pick 3 Night, for example, accepts <i>Daily Pick 3 Night</i>, "
+              "<i>Pick 3 Night</i> and <i>Daily 3 Night</i>; Cash 4 Night accepts "
+              "<i>Daily Cash 4 Night</i> and <i>Cash 4 Night</i>. Upper/lower case, "
+              "spaces and dashes are ignored. If a file has another name (e.g. "
+              "<i>Dail3 Morning.vmix</i>), add it to that game's list: "
+              "<font face='Courier'>\"preset_match\": [\"Daily Pick 3 Morning\", "
+              "\"Pick 3 Morning\", \"Daily 3 Morning\", \"Dail3 Morning\"]</font>.",
               "Open a preset, run <b>run_once.bat</b>, and look for the line "
               "<font face='Courier'>vMix: pushed ... into 'LottoTitle'</font>.",
           ]),
           warn("The program picks the first game whose preset_match is found in the "
-               "file name. Keep the names specific, e.g. \"Daily 3 Night\" and "
-               "\"Daily Pick 3 Night\", not just \"Night\"."),
+               "file name. Keep the names specific, e.g. \"Pick 3 Night\" and "
+               "\"Cash 4 Night\", not just \"Night\"."),
+          tip("The output files (section 8) keep one name per game - pick3_..., "
+              "playway_..., cash4_... - whatever the preset file is called."),
           ]
 
     # ---------------------------------------------------------------- 10
@@ -592,17 +601,19 @@ C:\\vMixLotto\\
           p("These names are used for the output files, overrides.json and "
             "config.json."),
           ]
-    rows = [["Key", "preset_match", "Supabase column", "period"]]
-    cols = {"daily3": "cash4_draw_no", "playway": "play_way_draw_no",
-            "dailypick3": "pick3_draw_no"}
+    rows = [["Key", "Recognised preset names", "Supabase column", "period"]]
+    aliases = {"pick3": "Pick 3 / Daily 3 / Daily Pick 3", "playway": "Play Way",
+               "cash4": "Cash 4 / Daily Cash 4"}
+    cols = {"pick3": "pick3_draw_no", "playway": "play_way_draw_no",
+            "cash4": "cash4_draw_no"}
     dbp = {"Morning": "mid_morning", "Midday": "midday",
            "Afternoon": "mid_afternoon", "Night": "evening"}
     for name, key in GAMES:
         for per in PERIODS:
-            rows.append(["%s_%s" % (key, per.lower()), "%s %s" % (name, per),
+            rows.append(["%s_%s" % (key, per.lower()), "%s %s" % (aliases[key], per),
                          cols[key], dbp[per]])
     rows.append(["lotto", "Lotto", "lotto_results.draw_no", "-"])
-    s += [table(rows, [1.6, 1.7, 1.8, 1.4]),
+    s += [table(rows, [1.4, 2.3, 1.6, 1.2]),
           p("Date-only fallback without Python", H2),
           p("<b>vmix_scripts\\SetDateText.vb</b> sets only the date field from inside "
             "vMix (no draw ID). In vMix 4K/Pro: Settings > Scripting > Add, paste the "

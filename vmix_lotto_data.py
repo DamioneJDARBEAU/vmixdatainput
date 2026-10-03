@@ -374,6 +374,17 @@ def next_draw_id(key, game, settings, state, overrides, today):
     return None, "none"
 
 
+def preset_matches(names, preset_file):
+    """True if any of the names is part of the preset file name. Case, spaces
+    and punctuation are ignored: "Pick 3 Night" matches "Daily Pick-3 Night.vmix"."""
+    def squash(text):
+        return re.sub(r"[^a-z0-9]", "", text.lower())
+    if isinstance(names, str):
+        names = [names]
+    loaded = squash(preset_file)
+    return any(squash(n) and squash(n) in loaded for n in names or [])
+
+
 def vmix_push(settings, results):
     """Push values into the title of whichever preset is loaded in vMix."""
     vm = settings.get("vmix_api") or {}
@@ -396,8 +407,7 @@ def vmix_push(settings, results):
         return
 
     for key, res in results.items():
-        match = (res["game"].get("preset_match") or "").lower()
-        if not match or match not in preset:
+        if not preset_matches(res["game"].get("preset_match"), preset):
             continue
         title = res["game"].get("title_input") or vm.get("title_input")
         fields = {vm.get("date_field", "Date.Text"): res["Date"],

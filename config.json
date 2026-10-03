@@ -43,16 +43,20 @@
     ]
   },
   "games": {
-    "daily3_morning": {
-      "name": "Daily 3 (Cash 4) Morning",
-      "preset_match": "Daily 3 Morning",
+    "pick3_morning": {
+      "name": "Pick 3 Morning",
+      "preset_match": [
+        "Daily Pick 3 Morning",
+        "Pick 3 Morning",
+        "Daily 3 Morning"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "supabase_slot",
           "table": "daily_results",
-          "draw_column": "cash4_draw_no",
+          "draw_column": "pick3_draw_no",
           "date_column": "draw_date",
           "period_column": "period",
           "period": "mid_morning",
@@ -65,21 +69,25 @@
         },
         {
           "type": "web",
-          "label_regex": "Cash\\s*4\\W{0,20}(?:Mid[\\s-]*)?Morning",
+          "label_regex": "(?:Daily\\s*(?:Pick\\s*)?|Pick\\s*)3\\W{0,20}(?:Mid[\\s-]*)?Morning",
           "window": 400
         }
       ]
     },
-    "daily3_midday": {
-      "name": "Daily 3 (Cash 4) Midday",
-      "preset_match": "Daily 3 Midday",
+    "pick3_midday": {
+      "name": "Pick 3 Midday",
+      "preset_match": [
+        "Daily Pick 3 Midday",
+        "Pick 3 Midday",
+        "Daily 3 Midday"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "supabase_slot",
           "table": "daily_results",
-          "draw_column": "cash4_draw_no",
+          "draw_column": "pick3_draw_no",
           "date_column": "draw_date",
           "period_column": "period",
           "period": "midday",
@@ -92,21 +100,25 @@
         },
         {
           "type": "web",
-          "label_regex": "Cash\\s*4\\W{0,20}Mid[\\s-]*day",
+          "label_regex": "(?:Daily\\s*(?:Pick\\s*)?|Pick\\s*)3\\W{0,20}Mid[\\s-]*day",
           "window": 400
         }
       ]
     },
-    "daily3_afternoon": {
-      "name": "Daily 3 (Cash 4) Afternoon",
-      "preset_match": "Daily 3 Afternoon",
+    "pick3_afternoon": {
+      "name": "Pick 3 Afternoon",
+      "preset_match": [
+        "Daily Pick 3 Afternoon",
+        "Pick 3 Afternoon",
+        "Daily 3 Afternoon"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "supabase_slot",
           "table": "daily_results",
-          "draw_column": "cash4_draw_no",
+          "draw_column": "pick3_draw_no",
           "date_column": "draw_date",
           "period_column": "period",
           "period": "mid_afternoon",
@@ -119,21 +131,25 @@
         },
         {
           "type": "web",
-          "label_regex": "Cash\\s*4\\W{0,20}(?:Mid[\\s-]*)?Afternoon",
+          "label_regex": "(?:Daily\\s*(?:Pick\\s*)?|Pick\\s*)3\\W{0,20}(?:Mid[\\s-]*)?Afternoon",
           "window": 400
         }
       ]
     },
-    "daily3_night": {
-      "name": "Daily 3 (Cash 4) Night",
-      "preset_match": "Daily 3 Night",
+    "pick3_night": {
+      "name": "Pick 3 Night",
+      "preset_match": [
+        "Daily Pick 3 Night",
+        "Pick 3 Night",
+        "Daily 3 Night"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "supabase_slot",
           "table": "daily_results",
-          "draw_column": "cash4_draw_no",
+          "draw_column": "pick3_draw_no",
           "date_column": "draw_date",
           "period_column": "period",
           "period": "evening",
@@ -146,14 +162,16 @@
         },
         {
           "type": "web",
-          "label_regex": "Cash\\s*4\\W{0,20}(?:Night|Evening)",
+          "label_regex": "(?:Daily\\s*(?:Pick\\s*)?|Pick\\s*)3\\W{0,20}(?:Night|Evening)",
           "window": 400
         }
       ]
     },
     "playway_morning": {
       "name": "Play Way Morning",
-      "preset_match": "Play Way Morning",
+      "preset_match": [
+        "Play Way Morning"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
@@ -180,7 +198,9 @@
     },
     "playway_midday": {
       "name": "Play Way Midday",
-      "preset_match": "Play Way Midday",
+      "preset_match": [
+        "Play Way Midday"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
@@ -207,7 +227,9 @@
     },
     "playway_afternoon": {
       "name": "Play Way Afternoon",
-      "preset_match": "Play Way Afternoon",
+      "preset_match": [
+        "Play Way Afternoon"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
@@ -234,7 +256,9 @@
     },
     "playway_night": {
       "name": "Play Way Night",
-      "preset_match": "Play Way Night",
+      "preset_match": [
+        "Play Way Night"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
@@ -259,16 +283,19 @@
         }
       ]
     },
-    "dailypick3_morning": {
-      "name": "Daily Pick 3 Morning",
-      "preset_match": "Daily Pick 3 Morning",
+    "cash4_morning": {
+      "name": "Cash 4 Morning",
+      "preset_match": [
+        "Daily Cash 4 Morning",
+        "Cash 4 Morning"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "supabase_slot",
           "table": "daily_results",
-          "draw_column": "pick3_draw_no",
+          "draw_column": "cash4_draw_no",
           "date_column": "draw_date",
           "period_column": "period",
           "period": "mid_morning",
@@ -281,21 +308,24 @@
         },
         {
           "type": "web",
-          "label_regex": "(?:Daily\\s*)?Pick\\s*3\\W{0,20}(?:Mid[\\s-]*)?Morning",
+          "label_regex": "(?:Daily\\s*)?Cash\\s*4\\W{0,20}(?:Mid[\\s-]*)?Morning",
           "window": 400
         }
       ]
     },
-    "dailypick3_midday": {
-      "name": "Daily Pick 3 Midday",
-      "preset_match": "Daily Pick 3 Midday",
+    "cash4_midday": {
+      "name": "Cash 4 Midday",
+      "preset_match": [
+        "Daily Cash 4 Midday",
+        "Cash 4 Midday"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "supabase_slot",
           "table": "daily_results",
-          "draw_column": "pick3_draw_no",
+          "draw_column": "cash4_draw_no",
           "date_column": "draw_date",
           "period_column": "period",
           "period": "midday",
@@ -308,21 +338,24 @@
         },
         {
           "type": "web",
-          "label_regex": "(?:Daily\\s*)?Pick\\s*3\\W{0,20}Mid[\\s-]*day",
+          "label_regex": "(?:Daily\\s*)?Cash\\s*4\\W{0,20}Mid[\\s-]*day",
           "window": 400
         }
       ]
     },
-    "dailypick3_afternoon": {
-      "name": "Daily Pick 3 Afternoon",
-      "preset_match": "Daily Pick 3 Afternoon",
+    "cash4_afternoon": {
+      "name": "Cash 4 Afternoon",
+      "preset_match": [
+        "Daily Cash 4 Afternoon",
+        "Cash 4 Afternoon"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "supabase_slot",
           "table": "daily_results",
-          "draw_column": "pick3_draw_no",
+          "draw_column": "cash4_draw_no",
           "date_column": "draw_date",
           "period_column": "period",
           "period": "mid_afternoon",
@@ -335,21 +368,24 @@
         },
         {
           "type": "web",
-          "label_regex": "(?:Daily\\s*)?Pick\\s*3\\W{0,20}(?:Mid[\\s-]*)?Afternoon",
+          "label_regex": "(?:Daily\\s*)?Cash\\s*4\\W{0,20}(?:Mid[\\s-]*)?Afternoon",
           "window": 400
         }
       ]
     },
-    "dailypick3_night": {
-      "name": "Daily Pick 3 Night",
-      "preset_match": "Daily Pick 3 Night",
+    "cash4_night": {
+      "name": "Cash 4 Night",
+      "preset_match": [
+        "Daily Cash 4 Night",
+        "Cash 4 Night"
+      ],
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "supabase_slot",
           "table": "daily_results",
-          "draw_column": "pick3_draw_no",
+          "draw_column": "cash4_draw_no",
           "date_column": "draw_date",
           "period_column": "period",
           "period": "evening",
@@ -362,7 +398,7 @@
         },
         {
           "type": "web",
-          "label_regex": "(?:Daily\\s*)?Pick\\s*3\\W{0,20}(?:Night|Evening)",
+          "label_regex": "(?:Daily\\s*)?Cash\\s*4\\W{0,20}(?:Night|Evening)",
           "window": 400
         }
       ]

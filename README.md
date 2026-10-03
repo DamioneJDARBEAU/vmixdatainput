@@ -16,10 +16,10 @@ to vMix in two ways. Use either one or both:
 1. **Data Source files (recommended).** One CSV per game/time period in `output\`.
    Each preset binds its title to its own file, so no row selection is needed.
 2. **vMix Web API push.** The script asks vMix which preset is loaded
-   (for example `Daily 3 Morning.vmix`) and sets the title fields directly.
+   (for example `Pick 3 Morning.vmix`) and sets the title fields directly.
 
 ```
- Supabase (email blast results) ─┐                       ┌─> output\daily3_morning.csv ─> vMix Data Source
+ Supabase (email blast results) ─┐                       ┌─> output\pick3_morning.csv ─> vMix Data Source
  about.nla.gd (backup)          ─┼─> vmix_lotto_data.py ─┤
  overrides.json                 ─┘   (every 5 min)       └─> http://127.0.0.1:8088/api SetText (loaded preset)
 ```
@@ -28,9 +28,9 @@ to vMix in two ways. Use either one or both:
 
 | Key                                         | vMix preset it serves            |
 |---------------------------------------------|----------------------------------|
-| `daily3_morning` / `_midday` / `_afternoon` / `_night`       | Daily 3 Morning … Night (Cash 4) |
+| `pick3_morning` / `_midday` / `_afternoon` / `_night`        | Pick 3 (also called Daily 3 / Daily Pick 3) Morning … Night |
 | `playway_morning` / `_midday` / `_afternoon` / `_night`      | Play Way Morning … Night     |
-| `dailypick3_morning` / `_midday` / `_afternoon` / `_night`   | Daily Pick 3 Morning … Night |
+| `cash4_morning` / `_midday` / `_afternoon` / `_night`        | Cash 4 (also called Daily Cash 4) Morning … Night |
 | `lotto`                                     | Lotto                            |
 
 Super 6 is left out on purpose. Rename or add games by editing `config.json`;
@@ -56,9 +56,9 @@ Each game tries **Supabase** first and the **website** second.
 
 | vMix presets                 | Supabase column                    | period values                                       |
 |------------------------------|------------------------------------|-----------------------------------------------------|
-| Daily 3 … (shows **Cash 4**) | `daily_results.cash4_draw_no`      | Morning `mid_morning`, Midday `midday`,             |
+| Pick 3 / Daily 3 / Daily Pick 3 … | `daily_results.pick3_draw_no` | Morning `mid_morning`, Midday `midday`,        |
 | Play Way …                   | `daily_results.play_way_draw_no`   | Afternoon `mid_afternoon`, Night `evening`          |
-| Daily Pick 3 …               | `daily_results.pick3_draw_no`      |                                                     |
+| Cash 4 / Daily Cash 4 …      | `daily_results.cash4_draw_no`      |                                                     |
 | Lotto                        | `lotto_results.draw_no`            | one draw per `draw_date`                            |
 
 These use the `supabase_slot` source. Draw numbers run in one sequence through
@@ -118,7 +118,7 @@ An override only applies on the date it carries, so a stale one cannot leak into
 the next day:
 
 ```json
-{ "daily3_morning": { "date": "2026-10-03", "next_draw": 12345 } }
+{ "pick3_morning": { "date": "2026-10-03", "next_draw": 12345 } }
 ```
 
 ### Safety nets
@@ -142,7 +142,7 @@ published, that game's next draw ID moves up on its own.
 
 ## 4. vMix setup (once per preset)
 
-Do this in each game's `.vmix` file (Daily 3 Morning, Daily 3 Midday, …, Lotto).
+Do this in each game's `.vmix` file (Pick 3 Morning, Pick 3 Midday, …, Lotto).
 
 ### Title
 
@@ -156,7 +156,7 @@ Do this in each game's `.vmix` file (Daily 3 Morning, Daily 3 Midday, …, Lotto
 
 1. **Settings → Data Sources → Add → Excel/CSV** (in older vMix: the
    **Data Sources** button at the bottom).
-2. Pick that preset's own file, e.g. `C:\vMixLotto\output\daily3_morning.csv`.
+2. Pick that preset's own file, e.g. `C:\vMixLotto\output\pick3_morning.csv`.
 3. Tick **Auto Refresh** and set the interval to about 10 seconds.
 4. Open the title's input settings (cog → **Data Source** tab). Bind
    `Date.Text` → column **Date** and `DRAW_ID.Text` → column **DRAW_ID**.
@@ -164,21 +164,22 @@ Do this in each game's `.vmix` file (Daily 3 Morning, Daily 3 Midday, …, Lotto
 
 | Preset file        | Data Source file           |
 |--------------------|----------------------------|
-| Daily 3 Morning    | `daily3_morning.csv`       |
-| Daily 3 Midday     | `daily3_midday.csv`        |
-| Daily 3 Afternoon  | `daily3_afternoon.csv`     |
-| Daily 3 Night      | `daily3_night.csv`         |
+| Pick 3 Morning     | `pick3_morning.csv`        |
+| Pick 3 Midday      | `pick3_midday.csv`         |
+| Pick 3 Afternoon   | `pick3_afternoon.csv`      |
+| Pick 3 Night       | `pick3_night.csv`          |
 | Play Way …         | `playway_<period>.csv`     |
-| Daily Pick 3 …     | `dailypick3_<period>.csv`  |
+| Cash 4 …           | `cash4_<period>.csv`       |
 | Lotto              | `lotto.csv`                |
 
 ### Option 2: Web API push (no binding needed)
 
 1. Turn on **Settings → Web Controller** (port 8088).
-2. In `config.json`, set each game's `preset_match` to text contained in its
-   preset filename. **It must match your real filenames**, e.g. if the file is
-   `Dail3 Morning.vmix`, use `"preset_match": "Dail3 Morning"`. Matching ignores
-   upper/lower case.
+2. Each game's `preset_match` lists the names its preset file may have. Pick 3
+   accepts `Daily Pick 3 <period>`, `Pick 3 <period>` and `Daily 3 <period>`;
+   Cash 4 accepts `Daily Cash 4 <period>` and `Cash 4 <period>`. Upper/lower case,
+   spaces and dashes are ignored. If a file has another name (e.g.
+   `Dail3 Morning.vmix`), add that name to the game's list.
 3. If vMix rejects a field (wrong input or field name), the script logs
    `vMix: could not set ...` and carries on. The CSV files are always written first.
 

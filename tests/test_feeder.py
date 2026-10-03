@@ -80,9 +80,9 @@ class DrawSourceTests(unittest.TestCase):
                 self.assertIn(s["type"], v.SOURCES)
             self.assertEqual(g["sources"][0]["type"], "supabase_slot")
         cols = {k: g["sources"][0]["draw_column"] for k, g in cfg["games"].items()}
-        self.assertEqual(cols["daily3_morning"], "cash4_draw_no")
+        self.assertEqual(cols["cash4_morning"], "cash4_draw_no")
         self.assertEqual(cols["playway_night"], "play_way_draw_no")
-        self.assertEqual(cols["dailypick3_midday"], "pick3_draw_no")
+        self.assertEqual(cols["pick3_midday"], "pick3_draw_no")
         self.assertEqual(cols["lotto"], "draw_no")
         self.assertEqual(cfg["games"]["playway_afternoon"]["sources"][0]["period"],
                          "mid_afternoon")
@@ -305,7 +305,7 @@ class VmixPushTests(unittest.TestCase):
                                      "date_field": "Date.Text",
                                      "draw_field": "DRAW_ID.Text"}}
             results = {
-                "daily3_night": {"game": {"preset_match": "Daily 3 Night"},
+                "pick3_night": {"game": {"preset_match": ["Pick 3 Night", "Daily 3 Night"]},
                                  "Date": "x", "DRAW_ID": "1"},
                 "playway_night": {"game": {"preset_match": "Play Way Night"},
                                   "Date": "Sat. 3rd Oct. 2026", "DRAW_ID": "3513"},
@@ -321,6 +321,23 @@ class VmixPushTests(unittest.TestCase):
             [(c["SelectedName"], c["Value"], c["Input"]) for c in calls],
             [("Date.Text", "Sat. 3rd Oct. 2026", "LottoTitle"),
              ("DRAW_ID.Text", "3513", "LottoTitle")])
+
+    def test_preset_names_from_config(self):
+        cfg = v.load_json(os.path.join(os.path.dirname(__file__), "..", "config.json"))
+
+        def which(filename):
+            hits = [k for k, g in cfg["games"].items()
+                    if v.preset_matches(g["preset_match"], filename)]
+            self.assertLessEqual(len(hits), 1, hits)  # never ambiguous
+            return hits[0] if hits else None
+
+        self.assertEqual(which("Daily 3 Morning.vmix"), "pick3_morning")
+        self.assertEqual(which("Pick 3 Midday.vmix"), "pick3_midday")
+        self.assertEqual(which("Daily Pick-3 Night.vmix"), "pick3_night")
+        self.assertEqual(which("Cash 4 Afternoon.vmix"), "cash4_afternoon")
+        self.assertEqual(which("Daily Cash 4 Night.vmix"), "cash4_night")
+        self.assertEqual(which("Play Way Morning.vmix"), "playway_morning")
+        self.assertEqual(which("Lotto.vmix"), "lotto")
 
     def test_wrong_field_name_does_not_crash(self):
         calls = self.run_push(set())
