@@ -127,15 +127,15 @@
         }
       ]
     },
-    "playwhe_morning": {
-      "name": "Play Whe Morning",
-      "preset_match": "Play Whe Morning",
+    "playway_morning": {
+      "name": "Play Way Morning",
+      "preset_match": "Play Way Morning",
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "web",
-          "label_regex": "Play\\s*Whe\\W{0,20}Morning",
+          "label_regex": "Play\\s*Way\\W{0,20}Morning",
           "window": 400
         },
         {
@@ -143,21 +143,21 @@
           "database": "C:/EmailBlast/results.db",
           "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
           "params": [
-            "Play Whe",
+            "Play Way",
             "Morning"
           ]
         }
       ]
     },
-    "playwhe_midday": {
-      "name": "Play Whe Midday",
-      "preset_match": "Play Whe Midday",
+    "playway_midday": {
+      "name": "Play Way Midday",
+      "preset_match": "Play Way Midday",
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "web",
-          "label_regex": "Play\\s*Whe\\W{0,20}Midday",
+          "label_regex": "Play\\s*Way\\W{0,20}Midday",
           "window": 400
         },
         {
@@ -165,21 +165,21 @@
           "database": "C:/EmailBlast/results.db",
           "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
           "params": [
-            "Play Whe",
+            "Play Way",
             "Midday"
           ]
         }
       ]
     },
-    "playwhe_afternoon": {
-      "name": "Play Whe Afternoon",
-      "preset_match": "Play Whe Afternoon",
+    "playway_afternoon": {
+      "name": "Play Way Afternoon",
+      "preset_match": "Play Way Afternoon",
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "web",
-          "label_regex": "Play\\s*Whe\\W{0,20}Afternoon",
+          "label_regex": "Play\\s*Way\\W{0,20}Afternoon",
           "window": 400
         },
         {
@@ -187,21 +187,21 @@
           "database": "C:/EmailBlast/results.db",
           "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
           "params": [
-            "Play Whe",
+            "Play Way",
             "Afternoon"
           ]
         }
       ]
     },
-    "playwhe_night": {
-      "name": "Play Whe Night",
-      "preset_match": "Play Whe Night",
+    "playway_night": {
+      "name": "Play Way Night",
+      "preset_match": "Play Way Night",
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
           "type": "web",
-          "label_regex": "Play\\s*Whe\\W{0,20}Night",
+          "label_regex": "Play\\s*Way\\W{0,20}Night",
           "window": 400
         },
         {
@@ -209,7 +209,7 @@
           "database": "C:/EmailBlast/results.db",
           "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
           "params": [
-            "Play Whe",
+            "Play Way",
             "Night"
           ]
         }

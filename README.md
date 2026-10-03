@@ -7,6 +7,8 @@ Fills two fields in each game's vMix title:
 | `DateText` | `Mon. 9th Sept. 2026`  | PC clock, formatted by the script                     |
 | `DrawID`   | `10452`                | last published draw number **+ 1**                    |
 
+**Step-by-step setup guide (PDF): [`docs/vMix_Lotto_Setup_Guide.pdf`](docs/vMix_Lotto_Setup_Guide.pdf)**
+
 vMix cannot build ordinals ("9th", "12th") or fetch draw numbers by itself, so a
 small Python script runs on the vMix PC. It works out the values and passes them
 to vMix in two ways. Use either one or both:
@@ -27,7 +29,7 @@ to vMix in two ways. Use either one or both:
 | Key                                         | vMix preset it serves            |
 |---------------------------------------------|----------------------------------|
 | `daily3_morning` / `_midday` / `_afternoon` / `_night`       | Daily 3 Morning … Night      |
-| `playwhe_morning` / `_midday` / `_afternoon` / `_night`      | Play Whe Morning … Night     |
+| `playway_morning` / `_midday` / `_afternoon` / `_night`      | Play Way Morning … Night     |
 | `dailypick3_morning` / `_midday` / `_afternoon` / `_night`   | Daily Pick 3 Morning … Night |
 | `lotto`                                     | Lotto                            |
 
@@ -118,14 +120,13 @@ the next day:
 
 ## 3. Keep it running
 
-Pick one of these:
-
-* **Simple:** start `run_loop.bat` before the show. It updates every 5 minutes.
-* **Hands-off (recommended):** Windows **Task Scheduler → Create Task**
-  * Trigger: *At log on* (or daily at 5:00 am)
-  * Action: `python.exe` with argument `C:\vMixLotto\vmix_lotto_data.py --loop 300`
-    and *Start in* set to `C:\vMixLotto`
-  * Settings: tick *If the task fails, restart every 1 minute*
+| File                    | What it does                                                        |
+|-------------------------|---------------------------------------------------------------------|
+| `run_once.bat`          | Updates everything once and shows the result. Use it to test.       |
+| `run_loop.bat`          | Updates every 5 minutes and restarts itself if it stops. Leave it open (minimised). |
+| `install_autostart.bat` | Right-click → *Run as administrator*. Starts `run_loop.bat` at every log-on. |
+| `remove_autostart.bat`  | Right-click → *Run as administrator*. Removes the auto-start.       |
+| `probe_website.bat`     | Lists draw numbers found on the website and saves them to `probe_result.txt`. |
 
 Run it every few minutes, not just once a day. After each draw's result is
 published, that game's next draw ID moves up on its own.
@@ -158,7 +159,7 @@ Do this in each game's `.vmix` file (Daily 3 Morning, Daily 3 Midday, …, Lotto
 | Daily 3 Midday     | `daily3_midday.csv`        |
 | Daily 3 Afternoon  | `daily3_afternoon.csv`     |
 | Daily 3 Night      | `daily3_night.csv`         |
-| Play Whe …         | `playwhe_<period>.csv`     |
+| Play Way …         | `playway_<period>.csv`     |
 | Daily Pick 3 …     | `dailypick3_<period>.csv`  |
 | Lotto              | `lotto.csv`                |
 

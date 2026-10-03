@@ -3,3 +3,4 @@ state.json
 overrides.json
 __pycache__/
 *.tmp
+probe_result.txt
