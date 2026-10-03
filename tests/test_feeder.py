@@ -104,7 +104,7 @@ class RunTwiceTests(unittest.TestCase):
             v.run_once(cfg)
             v.run_once(cfg)  # used to fail: state.json had a BOM
             with open(os.path.join(d, "out", "lotto.csv"), encoding="utf-8-sig") as f:
-                self.assertTrue(f.read().splitlines()[1].endswith(",77"))
+                self.assertTrue(f.read().splitlines()[1].endswith(',"77"'))
             self.assertEqual(v.load_json(os.path.join(d, "state.json"))["lotto"]["next_draw"], 77)
 
 
@@ -298,7 +298,7 @@ class JackpotTests(unittest.TestCase):
         lotto = cfg["games"]["lotto"]
         lotto["sources"] = lotto["sources"][:1]
         self.cfg = {"settings": {"supabase": {"url": self.srv.url, "key": "K"},
-                                 "draw_format": "Draw ID:  {0}",
+                                 "draw_format": "  Draw ID:  {0}",
                                  "output_folder": os.path.join(self.d, "out"),
                                  "state_file": os.path.join(self.d, "state.json"),
                                  "overrides_file": os.path.join(self.d, "ov.json")},
@@ -315,8 +315,8 @@ class JackpotTests(unittest.TestCase):
         today = dt.date.today().isoformat()
         res = v.run_once(self.cfg)
         self.assertEqual(res["lotto"]["extras"]["JACKPOT"], "$1,000,000")  # latest
-        self.assertEqual(self.csv_row()[0], "Game,Date,DRAW_ID,JACKPOT")
-        self.assertTrue(self.csv_row()[1].endswith(',Draw ID:  2101,"$1,000,000"'))
+        self.assertEqual(self.csv_row()[0], '"Game","Date","DRAW_ID","JACKPOT"')
+        self.assertTrue(self.csv_row()[1].endswith(',"  Draw ID:  2101","$1,000,000"'))
         self.rows.append({"draw_date": today, "draw_no": 2101, "jackpot_amount": 1250000.0})
         res = v.run_once(self.cfg)
         self.assertEqual(res["lotto"]["extras"]["JACKPOT"], "$1,250,000")  # today's row
@@ -324,7 +324,7 @@ class JackpotTests(unittest.TestCase):
             json.dump({"lotto": {"date": today, "jackpot": 1500000}}, f)
         res = v.run_once(self.cfg)
         self.assertEqual(res["lotto"]["extras"]["JACKPOT"], "$1,500,000")  # override
-        self.assertEqual(res["lotto"]["DRAW_ID"], "Draw ID:  2101")  # draw not overridden
+        self.assertEqual(res["lotto"]["DRAW_ID"], "  Draw ID:  2101")  # draw not overridden
 
     def test_cached_when_supabase_down(self):
         v.run_once(self.cfg)
@@ -337,7 +337,7 @@ class JackpotTests(unittest.TestCase):
     def test_all_games_has_jackpot_column(self):
         v.run_once(self.cfg)
         with open(os.path.join(self.d, "out", "all_games.csv"), encoding="utf-8-sig") as f:
-            self.assertEqual(f.readline().strip(), "Key,Game,Date,DRAW_ID,JACKPOT")
+            self.assertEqual(f.readline().strip(), '"Key","Game","Date","DRAW_ID","JACKPOT"')
 
 
 class DrawTextTests(unittest.TestCase):
@@ -346,20 +346,20 @@ class DrawTextTests(unittest.TestCase):
             cfg = {"settings": {"output_folder": os.path.join(d, "out"),
                                 "state_file": os.path.join(d, "state.json"),
                                 "overrides_file": os.path.join(d, "ov.json"),
-                                "draw_format": "Draw ID:  {0}"},
+                                "draw_format": "  Draw ID:  {0}"},
                    "games": {"lotto": {"name": "Lotto", "sources": []}}}
             with open(os.path.join(d, "ov.json"), "w") as f:
                 json.dump({"lotto": {"date": dt.date.today().isoformat(),
                                      "next_draw": 7930}}, f)
             res = v.run_once(cfg)
-            self.assertEqual(res["lotto"]["DRAW_ID"], "Draw ID:  7930")
+            self.assertEqual(res["lotto"]["DRAW_ID"], "  Draw ID:  7930")
             self.assertEqual(res["lotto"]["draw"], 7930)
             with open(os.path.join(d, "out", "lotto.csv"), encoding="utf-8-sig") as f:
-                self.assertIn(",Draw ID:  7930", f.read())
+                self.assertIn(',"  Draw ID:  7930"', f.read())
 
     def test_shipped_config_format(self):
         cfg = v.load_json(os.path.join(os.path.dirname(__file__), "..", "config.json"))
-        self.assertEqual(cfg["settings"]["draw_format"].format(7930), "Draw ID:  7930")
+        self.assertEqual(cfg["settings"]["draw_format"].format(7930), "  Draw ID:  7930")
 
 
 class RecordingTests(unittest.TestCase):

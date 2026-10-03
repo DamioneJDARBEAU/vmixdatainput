@@ -648,14 +648,14 @@ def run_once(cfg):
         results[key]["extras"] = extras
 
         buf = io.StringIO()
-        w = csv.writer(buf)
+        w = csv.writer(buf, quoting=csv.QUOTE_ALL)  # keeps leading spaces
         w.writerow(["Game", "Date", "DRAW_ID"] + list(extras))
         w.writerow([game.get("name", key), date_text, draw_text] + list(extras.values()))
         write_atomic(os.path.join(out_dir, key + ".csv"), buf.getvalue(), bom=True)
 
     # One combined file as well (one row per game) - handy for checking.
     buf = io.StringIO()
-    w = csv.writer(buf)
+    w = csv.writer(buf, quoting=csv.QUOTE_ALL)
     extra_cols = []
     for res in results.values():
         extra_cols += [c for c in res["extras"] if c not in extra_cols]

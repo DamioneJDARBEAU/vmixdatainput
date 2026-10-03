@@ -5,7 +5,7 @@ Fills two fields in each game's vMix title:
 | Field          | Example                | Where it comes from                                   |
 |----------------|------------------------|-------------------------------------------------------|
 | `Date.Text`    | `Mon. 9th Sept. 2026`  | PC clock, formatted by the script                     |
-| `DRAW_ID.Text` | `Draw ID:  10452`      | today's draw number (`draw_format`, two spaces)       |
+| `DRAW_ID.Text` | `␣␣Draw ID:  10452`    | today's draw number (`draw_format`: 2 spaces, text, 2 spaces) |
 
 **Step-by-step setup guide (PDF): [`docs/vMix_Lotto_Setup_Guide.pdf`](docs/vMix_Lotto_Setup_Guide.pdf)**
 
@@ -211,7 +211,7 @@ In `config.json` → `date_format`:
 * `month_names` – e.g. use `"Sep."` instead of `"Sept."`
 * `pattern` – e.g. `"{day} {date} {month}, {year}"` gives `Mon. 9th Sept., 2026`
 
-The draw text comes from `settings.draw_format`, currently `"Draw ID:  {0}"`
+The draw text comes from `settings.draw_format`, currently `"  Draw ID:  {0}"`
 (two spaces before the number). A game can have its own `draw_format`.
 Other examples: `"Draw #{0}"`, or `"{0:06d}"` for leading zeros.
 

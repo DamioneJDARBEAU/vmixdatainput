@@ -152,7 +152,7 @@ def story():
           p("Automatic date and next draw ID for every game title", SUB),
           Spacer(1, 0.4 * inch)]
     sample = Table([[p("<b>Date</b>", CELL), p("Mon. 9th Sept. 2026", CELL)],
-                    [p("<b>DRAW_ID</b>", CELL), p("Draw ID:&nbsp; 10452&nbsp;&nbsp; (last draw number + 1)", CELL)]],
+                    [p("<b>DRAW_ID</b>", CELL), p("&nbsp;&nbsp;Draw ID:&nbsp; 10452&nbsp;&nbsp; (2 spaces before and after \"Draw ID:\")", CELL)]],
                    colWidths=[1.4 * inch, 3.2 * inch], hAlign="CENTER")
     sample.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.8, NAVY),
@@ -484,7 +484,7 @@ C:\\vMixLotto\\
     rows.append(["Lotto", "lotto.csv"])
     s += [table(rows, [2.6, 3.9]),
           p("Each file has a header row and one data row, for example:"),
-          code("Game,Date,DRAW_ID\nPlay Way Night,Sat. 3rd Oct. 2026,Draw ID:  3513"),
+          code('"Game","Date","DRAW_ID"\n"Play Way Night","Sat. 3rd Oct. 2026","  Draw ID:  3513"'),
           PageBreak()]
 
     # ---------------------------------------------------------------- 9
@@ -604,7 +604,7 @@ C:\Users\user\Documents\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
                   "\"{day} {date} {month}, {year}\" gives Mon. 9th Sept., 2026"],
                  ["Jackpot look", "config.json: lotto > extras > format",
                   "\"EC${0:,.0f}\" or \"${0:,.2f}\" (cents)"],
-                 ["Draw ID text", "config.json: draw_format (now \"Draw ID:  {0}\")",
+                 ["Draw ID text", "config.json: draw_format (now \"  Draw ID:  {0}\")",
                   "\"Draw #{0}\", or \"{0:06d}\" for leading zeros"],
                  ["Recording folder / name", "config.json: recordings > folder, filename",
                   "\"{game}-{period}-{draw}{ext}\""],

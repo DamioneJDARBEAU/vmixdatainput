@@ -8,7 +8,7 @@
     "output_folder": "output",
     "state_file": "state.json",
     "overrides_file": "overrides.json",
-    "draw_format": "Draw ID:  {0}",
+    "draw_format": "  Draw ID:  {0}",
     "vmix_api": {
       "enabled": true,
       "url": "http://127.0.0.1:8088/api/",
