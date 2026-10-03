@@ -28,7 +28,7 @@ to vMix in two ways. Use either one or both:
 
 | Key                                         | vMix preset it serves            |
 |---------------------------------------------|----------------------------------|
-| `daily3_morning` / `_midday` / `_afternoon` / `_night`       | Daily 3 Morning … Night      |
+| `daily3_morning` / `_midday` / `_afternoon` / `_night`       | Daily 3 Morning … Night (Cash 4) |
 | `playway_morning` / `_midday` / `_afternoon` / `_night`      | Play Way Morning … Night     |
 | `dailypick3_morning` / `_midday` / `_afternoon` / `_night`   | Daily Pick 3 Morning … Night |
 | `lotto`                                     | Lotto                            |
@@ -52,35 +52,42 @@ Each game tries **Supabase** first and the **website** second.
 
 ### a) Supabase (email blast results database) – main source
 
+`config.json` is already mapped to the results tables:
+
+| vMix presets                 | Supabase column                    | period values                                       |
+|------------------------------|------------------------------------|-----------------------------------------------------|
+| Daily 3 … (shows **Cash 4**) | `daily_results.cash4_draw_no`      | Morning `mid_morning`, Midday `midday`,             |
+| Play Way …                   | `daily_results.play_way_draw_no`   | Afternoon `mid_afternoon`, Night `evening`          |
+| Daily Pick 3 …               | `daily_results.pick3_draw_no`      |                                                     |
+| Lotto                        | `lotto_results.draw_no`            | one draw per `draw_date`                            |
+
+These use the `supabase_slot` source. Draw numbers run in one sequence through
+the day (mid_morning → midday → mid_afternoon → evening → next day), so for each
+preset it:
+
+1. uses **today's row for that period** if it already has a draw number;
+2. otherwise takes the **latest** draw number (rows dated after today are ignored)
+   and counts forward one per draw slot to today's period. For example, if
+   yesterday's evening was 504, today's draws are 505 / 506 / 507 / 508.
+
+Lotto: today's row if present, otherwise the latest `draw_no` + 1. On a disrupted
+or cancelled day, use an override (c).
+
+Setup:
+
 1. In the Supabase dashboard open **Project Settings → API** (newer dashboards:
-   **Data API** / **API Keys**).
-2. Put the **Project URL** in `config.json` → `settings.supabase.url`.
-3. Copy the **anon / publishable** key into a new file `supabase_key.txt` next to
-   the script. That file is git-ignored. The key can also go in the `SUPABASE_KEY`
-   environment variable. **Do not use the service_role / secret key.**
-4. Double-click `check_sources.bat`. It lists the tables the key can see, the
-   columns in the configured table, and its 5 latest rows.
-5. Set `table` and `draw_column` (plus `order_column` if the draw number is stored
-   as text) in `settings.supabase`. Then make each game's `filters` match the
-   table's column names and values:
+   **Data API** / **API Keys**). Put the **Project URL** in `settings.supabase.url`.
+2. Copy the **anon / publishable** key into `supabase_key.txt` next to the script
+   (git-ignored), or set the `SUPABASE_KEY` environment variable.
+   **Never use the service_role / secret key.**
+3. Run `check_sources.bat`. It shows the latest rows of both tables and the draw
+   ID every preset would get right now.
+4. If a table "returned no rows", run `supabase/vmix_read_access.sql` in the
+   Supabase SQL editor. It lets the public key read **published** results only
+   (`published_at is not null`), so results awaiting approval stay hidden.
 
-```json
-"supabase": { "url": "https://abcdefghijkl.supabase.co", "key_file": "supabase_key.txt",
-              "table": "results", "draw_column": "draw_number", "order_column": "" }
-
-{ "type": "supabase", "filters": { "game": "Play Way", "period": "Night" } }
-```
-
-The script reads the row with the highest draw number for those filters
-(`order=<draw_column>.desc&limit=1`). Filters ignore upper/lower case, and `*`
-works as a wildcard (`"Play*Way"`).
-
-If the table has rows but the script sees none, Row Level Security is blocking
-the public key. Allow read-only access in the SQL editor:
-
-```sql
-create policy "vMix can read results" on public.results for select to anon using (true);
-```
+There's also a generic `supabase` source for other tables (latest value + 1,
+with `table`, `draw_column`, `order_column` and `filters`).
 
 ### b) Website (`about.nla.gd`) – backup source
 

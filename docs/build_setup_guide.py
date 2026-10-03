@@ -120,20 +120,16 @@ def footer(canvas, doc):
 SUPABASE_SAMPLE = """
 SUPABASE
 Project: https://abcdefghijkl.supabase.co
-Tables/views visible to this key: results, subscribers
-Columns in 'results': id, game, period, draw_number, numbers, draw_date
+Columns in 'daily_results': id, draw_date, period, play_way_draw_no, ...
 Latest rows:
-  {"id": 812, "game": "Play Way", "period": "Night", "draw_number": 3512, ...}
-"""
-
-FILTER_SAMPLE = """
-"playway_night": {
+  {"draw_date": "2026-10-03", "period": "mid_morning", "play_way_draw_no": 505, ...
   ...
-  "sources": [
-    { "type": "supabase", "filters": { "game": "Play Way", "period": "Night" } },
-    { "type": "web", ... }
-  ]
-}
+Draw IDs the feeder would use right now:
+  daily3_morning         905
+  daily3_midday          906
+  ...
+  playway_night          508
+  lotto                  2101
 """
 
 WEB_SAMPLE = r"""
@@ -165,8 +161,8 @@ def story():
         ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
         ("LEFTPADDING", (0, 0), (-1, -1), 10)]))
     s += [sample, Spacer(1, 0.5 * inch),
-          p("Covers: Daily 3, Play Way and Daily Pick 3 (Morning, Midday, Afternoon, "
-            "Night) and Lotto. Super 6 is not included.", SUB),
+          p("Covers: Daily 3 (Cash 4), Play Way and Daily Pick 3 (Morning, Midday, "
+            "Afternoon, Night) and Lotto. Super 6 is not included.", SUB),
           PageBreak()]
 
     # ---------------------------------------------------------------- contents
@@ -206,7 +202,8 @@ def story():
           p("Where the draw number comes from (tried in this order, for each game):", H2),
           table([["Order", "Source", "Notes"],
                  ["1", "Manual override", "overrides.json. Only used on the date written in it."],
-                 ["2", "Supabase", "The email blast results table in your Supabase project."],
+                 ["2", "Supabase", "daily_results and lotto_results in your email blast "
+                  "database."],
                  ["3", "Website", "about.nla.gd today. The address is one line in config.json."],
                  ["4", "Last good value", "Kept in state.json if everything above fails."]],
                 [0.6, 1.7, 4.2]),
@@ -276,6 +273,7 @@ C:\\vMixLotto\\
     run_once.bat              update once (for testing)
     run_loop.bat              keep updating every 5 minutes
     check_sources.bat         show what Supabase and the website contain
+    supabase\\vmix_read_access.sql   only if the key cannot read results
     install_autostart.bat     start automatically at log on
     remove_autostart.bat      undo the automatic start
     vmix_scripts\\SetDateText.vb
@@ -318,6 +316,9 @@ C:\\vMixLotto\\
             "Open with > Notepad). Keep the quotes and commas exactly as they are; a "
             "missing comma stops the program from starting."),
           p("6a. Supabase - the email blast results (main source)", H2),
+          p("config.json is already set up for your results database: "
+            "<b>daily_results</b> for the daily games and <b>lotto_results</b> for "
+            "Lotto. You only need to give it the project address and a key."),
           p("<b>Step 1 - copy the project address and key.</b>"),
           steps([
               "Log in at <b>https://supabase.com/dashboard</b> and open the project "
@@ -327,7 +328,8 @@ C:\\vMixLotto\\
               "the key).",
               "Copy the <b>Project URL</b> (looks like "
               "<font face='Courier'>https://abcdefghijkl.supabase.co</font>). In "
-              "config.json put it in <font face='Courier'>\"supabase\" &gt; \"url\"</font>.",
+              "config.json replace <font face='Courier'>https://YOUR-PROJECT-ID.supabase.co"
+              "</font> with it.",
               "Copy the <b>anon / public</b> key (newer dashboards call it the "
               "<b>publishable</b> key).",
               "In C:\\vMixLotto create a new text file called <b>supabase_key.txt</b>, "
@@ -335,41 +337,47 @@ C:\\vMixLotto\\
           ]),
           warn("Use the <b>anon / publishable</b> key, not the <b>service_role / secret</b> "
                "key. The secret key can change or delete everything in the database "
-               "and must not be stored on the vMix PC. Keep supabase_key.txt out of "
-               "emails and GitHub."),
+               "(staff, recipients, blasts) and must not be stored on the vMix PC. "
+               "Keep supabase_key.txt out of emails and GitHub."),
           tip("In File Explorer turn on <b>View &gt; File name extensions</b> so Notepad "
               "does not save the file as supabase_key.txt.txt."),
-          p("<b>Step 2 - see what is in the table.</b> Double-click "
-            "<b>check_sources.bat</b>. Under SUPABASE it shows the tables the key can "
-            "see, the column names, and the 5 latest rows, for example:"),
+          p("<b>Step 2 - check it.</b> Double-click <b>check_sources.bat</b>. Under "
+            "SUPABASE it shows the latest rows of daily_results and lotto_results, then "
+            "the draw ID every preset would get right now:"),
           code(SUPABASE_SAMPLE),
-          p("<b>Step 3 - match config.json to the table.</b> In the "
-            "<font face='Courier'>\"supabase\"</font> block set:"),
-          table([["Setting", "Set it to", "Example"],
-                 ["table", "the table holding the results", "\"results\""],
-                 ["draw_column", "the column holding the draw number", "\"draw_number\""],
-                 ["order_column", "leave \"\" - or a date/time column if the draw "
-                  "number is stored as text and sorts wrongly", "\"draw_date\""]],
-                [1.3, 3.4, 1.8]),
-          p("Then check each game's <b>filters</b>: the column names and the values "
-            "exactly as they appear in the table (upper/lower case does not matter):"),
-          code(FILTER_SAMPLE),
-          bullets([
-              "If the table stores the game and time in <b>one</b> column, e.g. "
-              "<i>\"Play Way Night\"</i>, use "
-              "<font face='Courier'>{ \"game\": \"Play Way Night\" }</font>.",
-              "If the spelling varies, use <b>*</b> as a wildcard: "
-              "<font face='Courier'>\"Play*Way\"</font> matches \"Play Way\" and \"PlayWay\".",
-              "Lotto only needs the game: <font face='Courier'>{ \"game\": \"Lotto\" }</font>.",
+          p("Compare a few of these with your own records. If they are right, the "
+            "Supabase part is done."),
+          warn("If it says a table <b>returned no rows</b> but the table has data, the "
+               "public key is not allowed to read it. Open "
+               "<b>supabase\\vmix_read_access.sql</b> from the folder, paste it into the "
+               "Supabase <b>SQL Editor</b> and click Run. It allows reading "
+               "<b>published</b> results only - results waiting for approval stay "
+               "hidden, and nothing can be changed with the key."),
+          p("How the draw ID is worked out", H2),
+          table([["vMix preset", "Supabase column", "Period"],
+                 ["Daily 3 ... (Cash 4)", "daily_results.cash4_draw_no", ""],
+                 ["Play Way ...", "daily_results.play_way_draw_no", ""],
+                 ["Daily Pick 3 ...", "daily_results.pick3_draw_no", ""],
+                 ["... Morning", "", "mid_morning"],
+                 ["... Midday", "", "midday"],
+                 ["... Afternoon", "", "mid_afternoon"],
+                 ["... Night", "", "evening"],
+                 ["Lotto", "lotto_results.draw_no", "(one draw per date)"]],
+                [2.0, 2.6, 1.9]),
+          p("Draw numbers run in one sequence through the day (mid-morning, midday, "
+            "mid-afternoon, evening, then the next day). So for each preset the "
+            "program:"),
+          steps([
+              "uses <b>today's row for that period</b> if it already has a draw number;",
+              "otherwise takes the <b>latest draw number</b> in the table and counts "
+              "forward one per draw slot to today's period. Example: yesterday's "
+              "evening Play Way was 504, so today is mid-morning 505, midday 506, "
+              "mid-afternoon 507, evening 508.",
           ]),
-          warn("If check_sources.bat says the table <b>returned no rows</b> but it has "
-               "data, Supabase Row Level Security is blocking the public key. In the "
-               "Supabase dashboard open <b>SQL Editor</b> and run (change "
-               "<i>results</i> to your table name):<br/>"
-               "<font face='Courier' size='8.5'>create policy \"vMix can read results\" "
-               "on public.results for select to anon using (true);</font><br/>"
-               "This only allows <b>reading</b> that one table, which is fine for "
-               "published draw results."),
+          p("Lotto works the same way with one draw per date: the latest draw_no plus "
+            "1, or today's row if it is already there."),
+          tip("On a disrupted or cancelled day the count can be off. Use a manual "
+              "override (6c) for that day."),
           PageBreak(),
           p("6b. The website (backup source)", H2),
           p("The website address is near the top of config.json:"),
@@ -545,20 +553,20 @@ C:\\vMixLotto\\
                   "A quote or comma is missing in config.json. Open it at "
                   "jsonlint.com to find the line."],
                  ["DRAW_ID is blank, source (none)",
-                  "No source returned a number. Run check_sources.bat and compare the "
-                  "table, columns and filters with config.json (6a). Use an override "
-                  "(6c) meanwhile."],
+                  "No source returned a number. Run check_sources.bat (6a). Use an "
+                  "override (6c) meanwhile."],
                  ["\"Supabase url/key not set\"",
                   "Put the Project URL in config.json and the key in supabase_key.txt (6a)."],
                  ["\"Supabase HTTP 401\" / Invalid API key",
                   "The key in supabase_key.txt is wrong or has extra text. Copy it again."],
                  ["\"Supabase HTTP 404\" / relation does not exist",
-                  "The \"table\" name in config.json is wrong. Use a name shown by "
-                  "check_sources.bat."],
+                  "A table was renamed in the database. Update \"table\" in config.json."],
                  ["\"Supabase HTTP 400\" / column does not exist",
-                  "draw_column, order_column or a filter column name is wrong."],
+                  "A column was renamed. Update \"draw_column\" in config.json."],
                  ["Supabase table returns no rows",
-                  "Row Level Security - run the policy shown in 6a."],
+                  "Run supabase\\vmix_read_access.sql in the SQL Editor (6a)."],
+                 ["Draw ID is one or more off",
+                  "A draw was skipped, cancelled or entered late. Use an override (6c)."],
                  ["\"web source failed: urlopen error\"",
                   "The website cannot be reached. Check internet access or the address "
                   "in website_url. Supabase is still used first."],
@@ -584,13 +592,17 @@ C:\\vMixLotto\\
           p("These names are used for the output files, overrides.json and "
             "config.json."),
           ]
-    rows = [["Key", "Game", "Default preset_match"]]
+    rows = [["Key", "preset_match", "Supabase column", "period"]]
+    cols = {"daily3": "cash4_draw_no", "playway": "play_way_draw_no",
+            "dailypick3": "pick3_draw_no"}
+    dbp = {"Morning": "mid_morning", "Midday": "midday",
+           "Afternoon": "mid_afternoon", "Night": "evening"}
     for name, key in GAMES:
         for per in PERIODS:
             rows.append(["%s_%s" % (key, per.lower()), "%s %s" % (name, per),
-                         "%s %s" % (name, per)])
-    rows.append(["lotto", "Lotto", "Lotto"])
-    s += [table(rows, [2.0, 2.2, 2.3]),
+                         cols[key], dbp[per]])
+    rows.append(["lotto", "Lotto", "lotto_results.draw_no", "-"])
+    s += [table(rows, [1.6, 1.7, 1.8, 1.4]),
           p("Date-only fallback without Python", H2),
           p("<b>vmix_scripts\\SetDateText.vb</b> sets only the date field from inside "
             "vMix (no draw ID). In vMix 4K/Pro: Settings > Scripting > Add, paste the "

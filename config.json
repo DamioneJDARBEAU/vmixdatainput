@@ -3,10 +3,7 @@
     "website_url": "https://about.nla.gd/",
     "supabase": {
       "url": "https://YOUR-PROJECT-ID.supabase.co",
-      "key_file": "supabase_key.txt",
-      "table": "results",
-      "draw_column": "draw_number",
-      "order_column": ""
+      "key_file": "supabase_key.txt"
     },
     "output_folder": "output",
     "state_file": "state.json",
@@ -47,81 +44,109 @@
   },
   "games": {
     "daily3_morning": {
-      "name": "Daily 3 Morning",
+      "name": "Daily 3 (Cash 4) Morning",
       "preset_match": "Daily 3 Morning",
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Daily 3",
-            "period": "Morning"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "cash4_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "mid_morning",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Daily\\s*3\\W{0,20}Morning",
+          "label_regex": "Cash\\s*4\\W{0,20}(?:Mid[\\s-]*)?Morning",
           "window": 400
         }
       ]
     },
     "daily3_midday": {
-      "name": "Daily 3 Midday",
+      "name": "Daily 3 (Cash 4) Midday",
       "preset_match": "Daily 3 Midday",
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Daily 3",
-            "period": "Midday"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "cash4_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "midday",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Daily\\s*3\\W{0,20}Midday",
+          "label_regex": "Cash\\s*4\\W{0,20}Mid[\\s-]*day",
           "window": 400
         }
       ]
     },
     "daily3_afternoon": {
-      "name": "Daily 3 Afternoon",
+      "name": "Daily 3 (Cash 4) Afternoon",
       "preset_match": "Daily 3 Afternoon",
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Daily 3",
-            "period": "Afternoon"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "cash4_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "mid_afternoon",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Daily\\s*3\\W{0,20}Afternoon",
+          "label_regex": "Cash\\s*4\\W{0,20}(?:Mid[\\s-]*)?Afternoon",
           "window": 400
         }
       ]
     },
     "daily3_night": {
-      "name": "Daily 3 Night",
+      "name": "Daily 3 (Cash 4) Night",
       "preset_match": "Daily 3 Night",
       "title_input": "LottoTitle",
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Daily 3",
-            "period": "Night"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "cash4_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "evening",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Daily\\s*3\\W{0,20}Night",
+          "label_regex": "Cash\\s*4\\W{0,20}(?:Night|Evening)",
           "window": 400
         }
       ]
@@ -133,15 +158,22 @@
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Play Way",
-            "period": "Morning"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "play_way_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "mid_morning",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Play\\s*Way\\W{0,20}Morning",
+          "label_regex": "Play\\s*Way\\W{0,20}(?:Mid[\\s-]*)?Morning",
           "window": 400
         }
       ]
@@ -153,15 +185,22 @@
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Play Way",
-            "period": "Midday"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "play_way_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "midday",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Play\\s*Way\\W{0,20}Midday",
+          "label_regex": "Play\\s*Way\\W{0,20}Mid[\\s-]*day",
           "window": 400
         }
       ]
@@ -173,15 +212,22 @@
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Play Way",
-            "period": "Afternoon"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "play_way_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "mid_afternoon",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Play\\s*Way\\W{0,20}Afternoon",
+          "label_regex": "Play\\s*Way\\W{0,20}(?:Mid[\\s-]*)?Afternoon",
           "window": 400
         }
       ]
@@ -193,15 +239,22 @@
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Play Way",
-            "period": "Night"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "play_way_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "evening",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Play\\s*Way\\W{0,20}Night",
+          "label_regex": "Play\\s*Way\\W{0,20}(?:Night|Evening)",
           "window": 400
         }
       ]
@@ -213,15 +266,22 @@
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Daily Pick 3",
-            "period": "Morning"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "pick3_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "mid_morning",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Morning",
+          "label_regex": "(?:Daily\\s*)?Pick\\s*3\\W{0,20}(?:Mid[\\s-]*)?Morning",
           "window": 400
         }
       ]
@@ -233,15 +293,22 @@
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Daily Pick 3",
-            "period": "Midday"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "pick3_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "midday",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Midday",
+          "label_regex": "(?:Daily\\s*)?Pick\\s*3\\W{0,20}Mid[\\s-]*day",
           "window": 400
         }
       ]
@@ -253,15 +320,22 @@
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Daily Pick 3",
-            "period": "Afternoon"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "pick3_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "mid_afternoon",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Afternoon",
+          "label_regex": "(?:Daily\\s*)?Pick\\s*3\\W{0,20}(?:Mid[\\s-]*)?Afternoon",
           "window": 400
         }
       ]
@@ -273,15 +347,22 @@
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Daily Pick 3",
-            "period": "Night"
-          }
+          "type": "supabase_slot",
+          "table": "daily_results",
+          "draw_column": "pick3_draw_no",
+          "date_column": "draw_date",
+          "period_column": "period",
+          "period": "evening",
+          "periods": [
+            "mid_morning",
+            "midday",
+            "mid_afternoon",
+            "evening"
+          ]
         },
         {
           "type": "web",
-          "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Night",
+          "label_regex": "(?:Daily\\s*)?Pick\\s*3\\W{0,20}(?:Night|Evening)",
           "window": 400
         }
       ]
@@ -293,10 +374,10 @@
       "increment": 1,
       "sources": [
         {
-          "type": "supabase",
-          "filters": {
-            "game": "Lotto"
-          }
+          "type": "supabase_slot",
+          "table": "lotto_results",
+          "draw_column": "draw_no",
+          "date_column": "draw_date"
         },
         {
           "type": "web",

@@ -78,7 +78,14 @@ class DrawSourceTests(unittest.TestCase):
         for g in cfg["games"].values():
             for s in g["sources"]:
                 self.assertIn(s["type"], v.SOURCES)
-            self.assertEqual(g["sources"][0]["type"], "supabase")
+            self.assertEqual(g["sources"][0]["type"], "supabase_slot")
+        cols = {k: g["sources"][0]["draw_column"] for k, g in cfg["games"].items()}
+        self.assertEqual(cols["daily3_morning"], "cash4_draw_no")
+        self.assertEqual(cols["playway_night"], "play_way_draw_no")
+        self.assertEqual(cols["dailypick3_midday"], "pick3_draw_no")
+        self.assertEqual(cols["lotto"], "draw_no")
+        self.assertEqual(cfg["games"]["playway_afternoon"]["sources"][0]["period"],
+                         "mid_afternoon")
         self.assertEqual(cfg["settings"]["vmix_api"]["date_field"], "Date.Text")
         self.assertEqual(cfg["settings"]["vmix_api"]["draw_field"], "DRAW_ID.Text")
 
@@ -186,6 +193,98 @@ class SupabaseTests(unittest.TestCase):
             finally:
                 if old is not None:
                     os.environ["SUPABASE_KEY"] = old
+
+
+PERIODS = ["mid_morning", "midday", "mid_afternoon", "evening"]
+
+
+def fake_postgrest(rows):
+    """Handler that applies select / not.is.null / lte / order desc / limit."""
+    def handler(path, q, headers):
+        data = list(rows)
+        limit = None
+        order = None
+        for k, val in q:
+            if k == "limit":
+                limit = int(val)
+            elif k == "order":
+                order = val.split(".")[0]
+            elif k == "select":
+                continue
+            elif val == "not.is.null":
+                data = [r for r in data if r.get(k) is not None]
+            elif val.startswith("lte."):
+                data = [r for r in data if str(r[k]) <= val[4:]]
+        if order:
+            data.sort(key=lambda r: r[order], reverse=True)
+        return 200, json.dumps(data[:limit])
+    return handler
+
+
+class SupabaseSlotTests(unittest.TestCase):
+    def setUp(self):
+        self.rows = []
+        self.srv = FakeServer(fake_postgrest(self.rows))
+        self.settings = {"supabase": {"url": self.srv.url, "key": "K"}}
+
+    def tearDown(self):
+        self.srv.close()
+
+    def daily(self, d, period, pw):
+        self.rows.append({"draw_date": d, "period": period, "play_way_draw_no": pw})
+
+    def next_for(self, period, today):
+        src = {"type": "supabase_slot", "table": "daily_results",
+               "draw_column": "play_way_draw_no", "period_column": "period",
+               "period": period, "periods": PERIODS}
+        r = v.source_supabase_slot(src, {}, self.settings, dt.date(*today))
+        return None if r is None else r["next"]
+
+    def test_counts_slots_through_the_day(self):
+        # yesterday fully published: 1001..1004
+        for i, per in enumerate(PERIODS):
+            self.daily("2026-10-02", per, 1001 + i)
+        t = (2026, 10, 3)
+        self.assertEqual(self.next_for("mid_morning", t), 1005)
+        self.assertEqual(self.next_for("midday", t), 1006)
+        self.assertEqual(self.next_for("mid_afternoon", t), 1007)
+        self.assertEqual(self.next_for("evening", t), 1008)
+        # morning result published today
+        self.daily("2026-10-03", "mid_morning", 1005)
+        self.assertEqual(self.next_for("mid_morning", t), 1005)  # its own number
+        self.assertEqual(self.next_for("evening", t), 1008)
+
+    def test_yesterday_not_fully_entered_and_gap_days(self):
+        self.daily("2026-10-02", "mid_morning", 2001)
+        self.daily("2026-10-02", "midday", 2002)
+        # mid_afternoon / evening of yesterday still to be entered
+        self.assertEqual(self.next_for("mid_morning", (2026, 10, 3)), 2005)
+        # several days later with no draws in between (e.g. holiday)
+        self.rows[:] = [{"draw_date": "2026-10-02", "period": "evening",
+                         "play_way_draw_no": 3000}]
+        self.assertEqual(self.next_for("midday", (2026, 10, 5)), 3002)
+
+    def test_future_rows_ignored_and_passed_period(self):
+        self.daily("2026-10-03", "midday", 4002)
+        self.daily("2026-10-04", "mid_morning", 9999)  # pre-entered, future
+        self.assertEqual(self.next_for("evening", (2026, 10, 3)), 4004)
+        self.assertIsNone(self.next_for("mid_morning", (2026, 10, 3)))
+
+    def test_lotto_no_periods(self):
+        self.rows[:] = [{"draw_date": "2026-09-30", "draw_no": 2100},
+                        {"draw_date": "2026-09-26", "draw_no": 2099}]
+        src = {"type": "supabase_slot", "table": "lotto_results", "draw_column": "draw_no"}
+        today = dt.date(2026, 10, 3)
+        self.assertEqual(v.source_supabase_slot(src, {}, self.settings, today), {"next": 2101})
+        self.rows.append({"draw_date": "2026-10-03", "draw_no": 2101})
+        self.assertEqual(v.source_supabase_slot(src, {}, self.settings, today), {"next": 2101})
+        # through next_draw_id: no extra +1 on top of the slot result
+        game = {"sources": [src], "increment": 1}
+        self.assertEqual(v.next_draw_id("lotto", game, self.settings, {}, {}, today),
+                         (2101, "supabase_slot"))
+
+    def test_empty_table(self):
+        self.assertIsNone(self.next_for("midday", (2026, 10, 3)))
 
 
 class VmixPushTests(unittest.TestCase):

@@ -11,7 +11,9 @@ Sources) and, optionally, pushed straight into the title that is loaded in
 vMix through the vMix Web API.
 
 Draw numbers are looked up from a list of sources, tried in order, per game:
-  * "supabase" - read the results table of a Supabase project (REST API)
+  * "supabase_slot" - NLA results tables in Supabase (daily_results,
+                   lotto_results): today's draw number for the game/period
+  * "supabase" - generic: latest number in any Supabase table, plus 1
   * "web"      - scrape a web page (URL + regex patterns live in config.json)
   * "json"     - read a JSON API/file and follow a path to the draw number
   * "sqlite"   - query a SQLite database (e.g. the email blast database)
@@ -151,7 +153,7 @@ def html_to_text(page):
 DEFAULT_DRAW_REGEX = r"Draw\s*(?:No\.?|Number|#|ID)?\s*[:#]?\s*(\d{3,})"
 
 
-def source_web(src, game, settings):
+def source_web(src, game, settings, today=None):
     url = src.get("url") or settings.get("website_url")
     page = http_get(url)
     text = page if src.get("raw_html") else html_to_text(page)
@@ -174,7 +176,7 @@ def source_web(src, game, settings):
     return max(found)
 
 
-def source_json(src, game, settings):
+def source_json(src, game, settings, today=None):
     location = src["url"]
     if re.match(r"https?://", location):
         data = json.loads(http_get(location))
@@ -186,7 +188,7 @@ def source_json(src, game, settings):
     return int(data)
 
 
-def source_sqlite(src, game, settings):
+def source_sqlite(src, game, settings, today=None):
     con = sqlite3.connect(resolve(src["database"]))
     try:
         row = con.execute(src["query"], src.get("params", [])).fetchone()
@@ -195,7 +197,7 @@ def source_sqlite(src, game, settings):
     return int(row[0]) if row and row[0] is not None else None
 
 
-def source_odbc(src, game, settings):
+def source_odbc(src, game, settings, today=None):
     import pyodbc  # optional dependency: pip install pyodbc
     con = pyodbc.connect(src["connection_string"], timeout=15)
     try:
@@ -207,7 +209,7 @@ def source_odbc(src, game, settings):
     return int(row[0]) if row and row[0] is not None else None
 
 
-def source_csv(src, game, settings):
+def source_csv(src, game, settings, today=None):
     with open(resolve(src["file"]), "r", encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
     flt = src.get("filter", {})  # e.g. {"Game": "Daily 3", "Period": "Morning"}
@@ -254,7 +256,7 @@ def supabase_get(sb, path, params):
         raise RuntimeError("Supabase HTTP %s: %s" % (e.code, detail))
 
 
-def source_supabase(src, game, settings):
+def source_supabase(src, game, settings, today=None):
     sb = supabase_settings(settings)
     table = src.get("table") or sb.get("table", "results")
     col = src.get("draw_column") or sb.get("draw_column", "draw_number")
@@ -270,7 +272,64 @@ def source_supabase(src, game, settings):
     return int(m.group()) if m else None
 
 
+def source_supabase_slot(src, game, settings, today=None):
+    """Draw number for TODAY's draw of this game/period, from a results table
+    where draw numbers run in one sequence through the day's periods.
+
+    * If today's row for this period already has a draw number, use it.
+    * Otherwise take the latest known draw number and add the number of
+      draw slots between it and today's slot for this period.
+    Returns {"next": n} - already the final draw ID (no +1 added later).
+    """
+    sb = supabase_settings(settings)
+    today = today or dt.date.today()
+    table = src["table"]
+    col = src["draw_column"]
+    date_col = src.get("date_column", "draw_date")
+    period_col = src.get("period_column")
+    periods = src.get("periods") or []
+    target = src.get("period")
+
+    select = [date_col, col] + ([period_col] if period_col else [])
+    params = [("select", ",".join(select)),
+              (col, "not.is.null"),
+              (date_col, "lte." + today.isoformat()),
+              ("order", date_col + ".desc"),
+              ("limit", str(max(8, 3 * len(periods))))]
+    rows = supabase_get(sb, table, params)
+
+    def slot(row):
+        idx = periods.index(row[period_col]) if period_col else 0
+        return (str(row[date_col])[:10], idx)
+
+    found = []
+    for row in rows:
+        if period_col and row.get(period_col) not in periods:
+            continue
+        found.append((slot(row), int(row[col])))
+    if not found:
+        return None
+
+    t_idx = periods.index(target) if period_col else 0
+    today_s = today.isoformat()
+    for (d, idx), draw in found:
+        if d == today_s and idx == t_idx:
+            return {"next": draw}  # today's draw number is already known
+
+    (l_date, l_idx), l_draw = max(found)
+    per_day = max(1, len(periods))
+    if l_date == today_s:
+        steps = t_idx - l_idx
+        if steps <= 0:  # this period already passed today without a number
+            return None
+    else:
+        # remaining slots on the latest day + today's slots up to the target
+        steps = (per_day - 1 - l_idx) + t_idx + 1
+    return {"next": l_draw + steps}
+
+
 SOURCES = {
+    "supabase_slot": source_supabase_slot,
     "supabase": source_supabase,
     "web": source_web,
     "json": source_json,
@@ -295,12 +354,12 @@ def next_draw_id(key, game, settings, state, overrides, today):
     for src in game.get("sources", []):
         kind = src.get("type")
         try:
-            last = SOURCES[kind](src, game, settings)
+            last = SOURCES[kind](src, game, settings, today)
         except Exception as e:  # keep going with the next source
             log("  %s: %s source failed: %s" % (key, kind, e))
             continue
         if last is not None:
-            nxt = last + increment
+            nxt = last["next"] if isinstance(last, dict) else last + increment
             prev = state.get(key, {}).get("next_draw")
             if prev and nxt < prev:
                 log("  %s: %s gave %d, lower than previous %d - ignored"
@@ -415,7 +474,7 @@ def run_once(cfg):
 def probe(cfg):
     """Show what the Supabase table and the web page(s) contain."""
     settings = cfg.get("settings", {})
-    probe_supabase(settings)
+    probe_supabase(settings, cfg.get("games"))
     urls = {settings.get("website_url")}
     for g in cfg["games"].values():
         for s in g.get("sources", []):
@@ -440,7 +499,7 @@ def probe(cfg):
             print("-" * 70)
 
 
-def probe_supabase(settings):
+def probe_supabase(settings, games=None):
     if not settings.get("supabase"):
         return
     print("=" * 70 + "\nSUPABASE")
@@ -457,25 +516,54 @@ def probe_supabase(settings):
         print("Tables/views visible to this key: %s" % (", ".join(names) or "-"))
     except Exception as e:
         print("Could not list tables (%s)" % e)
-    table = sb.get("table", "results")
-    try:
+
+    tables = {}
+    for g in (games or {}).values():
+        for src in g.get("sources", []):
+            if src.get("type") == "supabase_slot":
+                tables.setdefault(src["table"], src.get("date_column", "draw_date"))
+            elif src.get("type") == "supabase":
+                t = src.get("table") or sb.get("table", "results")
+                tables.setdefault(t, src.get("order_column") or sb.get("order_column")
+                                  or src.get("draw_column") or sb.get("draw_column"))
+    if not tables:
+        tables[sb.get("table", "results")] = sb.get("order_column") or sb.get("draw_column")
+
+    for table, order in tables.items():
+        print("-" * 70)
         params = [("select", "*"), ("limit", "5")]
-        if sb.get("order_column") or sb.get("draw_column"):
-            params.append(("order", (sb.get("order_column") or sb["draw_column"])
-                           + ".desc.nullslast"))
-        rows = supabase_get(sb, table, params)
-    except Exception as e:
-        print("Could not read table '%s': %s" % (table, e))
-        return
-    if not rows:
-        print("Table '%s' returned no rows. If it has data, the key is not "
-              "allowed to read it (Row Level Security) - see the setup guide."
-              % table)
-        return
-    print("Columns in '%s': %s" % (table, ", ".join(rows[0].keys())))
-    print("Latest rows:")
-    for row in rows:
-        print("  " + json.dumps(row, default=str)[:300])
+        if order:
+            params.append(("order", order + ".desc.nullslast"))
+        try:
+            rows = supabase_get(sb, table, params)
+        except Exception as e:
+            print("Could not read table '%s': %s" % (table, e))
+            continue
+        if not rows:
+            print("Table '%s' returned no rows. If it has data, the key is not "
+                  "allowed to read it (Row Level Security) - see the setup guide."
+                  % table)
+            continue
+        print("Columns in '%s': %s" % (table, ", ".join(rows[0].keys())))
+        print("Latest rows:")
+        for row in rows:
+            print("  " + json.dumps(row, default=str)[:300])
+
+    print("-" * 70)
+    print("Draw IDs the feeder would use right now:")
+    today = dt.date.today()
+    for key, g in (games or {}).items():
+        for src in g.get("sources", []):
+            if src.get("type") not in ("supabase_slot", "supabase"):
+                continue
+            try:
+                r = SOURCES[src["type"]](src, g, settings, today)
+                val = r["next"] if isinstance(r, dict) else (
+                    None if r is None else r + int(g.get("increment", 1)))
+                print("  %-22s %s" % (key, "-" if val is None else val))
+            except Exception as e:
+                print("  %-22s error: %s" % (key, e))
+            break
 
 
 def main():
