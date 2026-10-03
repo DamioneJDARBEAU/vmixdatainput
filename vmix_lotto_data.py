@@ -344,10 +344,70 @@ SOURCES = {
 # Main logic
 # --------------------------------------------------------------------------
 
+def supabase_value(src, settings, today):
+    """Latest value of a column (e.g. lotto_results.jackpot_amount).
+
+    Returns (value, "today" | "latest") or (None, None). Today's row wins;
+    otherwise the most recent earlier row is used if use_latest is true.
+    """
+    sb = supabase_settings(settings)
+    col = src["value_column"]
+    date_col = src.get("date_column", "draw_date")
+    rows = supabase_get(sb, src["table"], [
+        ("select", "%s,%s" % (date_col, col)),
+        (col, "not.is.null"),
+        (date_col, "lte." + today.isoformat()),
+        ("order", date_col + ".desc"),
+        ("limit", "1")])
+    if not rows:
+        return None, None
+    row = rows[0]
+    if str(row[date_col])[:10] == today.isoformat():
+        return row[col], "today"
+    if src.get("use_latest", True):
+        return row[col], "latest"
+    return None, None
+
+
+def format_value(fmt, value):
+    try:
+        return fmt.format(float(value))
+    except (TypeError, ValueError):
+        return fmt.format(value)
+
+
+def extra_values(key, game, settings, state, overrides, today):
+    """Extra title fields for a game (e.g. Lotto JACKPOT): {column: text}."""
+    out = {}
+    ov = overrides.get(key)
+    ov_today = isinstance(ov, dict) and ov.get("date") == today.isoformat()
+    for ex in game.get("extras", []):
+        name = ex["column"]
+        okey = ex.get("override_key", name.lower())
+        value, origin = None, None
+        if ov_today and ov.get(okey) is not None:
+            value, origin = ov[okey], "override"
+        else:
+            try:
+                value, origin = supabase_value(ex["source"], settings, today)
+            except Exception as e:
+                log("  %s: %s lookup failed: %s" % (key, name, e))
+            if value is None:
+                value = state.get(key, {}).get(okey)
+                origin = "cached" if value is not None else "none"
+        if value is not None:
+            state.setdefault(key, {})[okey] = value
+        text = "" if value is None else format_value(ex.get("format", "{0}"), value)
+        out[name] = text
+        log("  %-22s %s %s (%s)" % ("", name, text or "-", origin))
+    return out
+
+
 def next_draw_id(key, game, settings, state, overrides, today):
     """Return (next_draw_id, where_it_came_from)."""
     ov = overrides.get(key)
-    if isinstance(ov, dict) and ov.get("date") == today.isoformat():
+    if (isinstance(ov, dict) and ov.get("date") == today.isoformat()
+            and ov.get("next_draw") is not None):
         return int(ov["next_draw"]), "override"
 
     increment = int(game.get("increment", 1))
@@ -413,6 +473,9 @@ def vmix_push(settings, results):
         title = res["game"].get("title_input") or vm.get("title_input")
         fields = {vm.get("date_field", "Date.Text"): res["Date"],
                   vm.get("draw_field", "DRAW_ID.Text"): res["DRAW_ID"]}
+        for ex in res["game"].get("extras", []):
+            if ex.get("vmix_field"):
+                fields[ex["vmix_field"]] = res.get("extras", {}).get(ex["column"], "")
         ok = True
         for field, value in fields.items():
             if value == "":
@@ -577,22 +640,29 @@ def run_once(cfg):
         results[key] = {"game": game, "Date": date_text, "DRAW_ID": draw_text,
                         "draw": draw}
         if draw is not None:
-            state[key] = {"next_draw": draw, "source": origin,
-                          "updated": dt.datetime.now().isoformat(timespec="seconds")}
+            state.setdefault(key, {}).update({
+                "next_draw": draw, "source": origin,
+                "updated": dt.datetime.now().isoformat(timespec="seconds")})
         log("  %-22s next draw %-8s (%s)" % (key, "-" if draw is None else draw, origin))
+        extras = extra_values(key, game, settings, state, overrides, today)
+        results[key]["extras"] = extras
 
         buf = io.StringIO()
         w = csv.writer(buf)
-        w.writerow(["Game", "Date", "DRAW_ID"])
-        w.writerow([game.get("name", key), date_text, draw_text])
+        w.writerow(["Game", "Date", "DRAW_ID"] + list(extras))
+        w.writerow([game.get("name", key), date_text, draw_text] + list(extras.values()))
         write_atomic(os.path.join(out_dir, key + ".csv"), buf.getvalue(), bom=True)
 
     # One combined file as well (one row per game) - handy for checking.
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["Key", "Game", "Date", "DRAW_ID"])
+    extra_cols = []
+    for res in results.values():
+        extra_cols += [c for c in res["extras"] if c not in extra_cols]
+    w.writerow(["Key", "Game", "Date", "DRAW_ID"] + extra_cols)
     for key, res in results.items():
-        w.writerow([key, res["game"].get("name", key), res["Date"], res["DRAW_ID"]])
+        w.writerow([key, res["game"].get("name", key), res["Date"], res["DRAW_ID"]]
+                   + [res["extras"].get(c, "") for c in extra_cols])
     write_atomic(os.path.join(out_dir, "all_games.csv"), buf.getvalue(), bom=True)
 
     write_atomic(state_file, json.dumps(state, indent=2))
@@ -696,6 +766,13 @@ def probe_supabase(settings, games=None):
             except Exception as e:
                 print("  %-22s error: %s" % (key, e))
             break
+        for ex in g.get("extras", []):
+            try:
+                value, origin = supabase_value(ex["source"], settings, today)
+                text = "-" if value is None else format_value(ex.get("format", "{0}"), value)
+                print("  %-22s %s %s (%s)" % ("", ex["column"], text, origin or "none"))
+            except Exception as e:
+                print("  %-22s %s error: %s" % ("", ex["column"], e))
 
 
 def main():

@@ -288,6 +288,58 @@ class SupabaseSlotTests(unittest.TestCase):
         self.assertIsNone(self.next_for("midday", (2026, 10, 3)))
 
 
+class JackpotTests(unittest.TestCase):
+    def setUp(self):
+        self.rows = [{"draw_date": "2026-09-30", "draw_no": 2100, "jackpot_amount": 1000000},
+                     {"draw_date": "2026-09-26", "draw_no": 2099, "jackpot_amount": 900000}]
+        self.srv = FakeServer(fake_postgrest(self.rows))
+        self.d = tempfile.mkdtemp()
+        cfg = v.load_json(os.path.join(os.path.dirname(__file__), "..", "config.json"))
+        lotto = cfg["games"]["lotto"]
+        lotto["sources"] = lotto["sources"][:1]
+        self.cfg = {"settings": {"supabase": {"url": self.srv.url, "key": "K"},
+                                 "draw_format": "Draw ID:  {0}",
+                                 "output_folder": os.path.join(self.d, "out"),
+                                 "state_file": os.path.join(self.d, "state.json"),
+                                 "overrides_file": os.path.join(self.d, "ov.json")},
+                    "games": {"lotto": lotto}}
+
+    def tearDown(self):
+        self.srv.close()
+
+    def csv_row(self):
+        with open(os.path.join(self.d, "out", "lotto.csv"), encoding="utf-8-sig") as f:
+            return f.read().splitlines()
+
+    def test_latest_then_today_then_override(self):
+        today = dt.date.today().isoformat()
+        res = v.run_once(self.cfg)
+        self.assertEqual(res["lotto"]["extras"]["JACKPOT"], "$1,000,000")  # latest
+        self.assertEqual(self.csv_row()[0], "Game,Date,DRAW_ID,JACKPOT")
+        self.assertTrue(self.csv_row()[1].endswith(',Draw ID:  2101,"$1,000,000"'))
+        self.rows.append({"draw_date": today, "draw_no": 2101, "jackpot_amount": 1250000.0})
+        res = v.run_once(self.cfg)
+        self.assertEqual(res["lotto"]["extras"]["JACKPOT"], "$1,250,000")  # today's row
+        with open(os.path.join(self.d, "ov.json"), "w") as f:
+            json.dump({"lotto": {"date": today, "jackpot": 1500000}}, f)
+        res = v.run_once(self.cfg)
+        self.assertEqual(res["lotto"]["extras"]["JACKPOT"], "$1,500,000")  # override
+        self.assertEqual(res["lotto"]["DRAW_ID"], "Draw ID:  2101")  # draw not overridden
+
+    def test_cached_when_supabase_down(self):
+        v.run_once(self.cfg)
+        self.srv.close()
+        self.cfg["settings"]["supabase"]["url"] = "http://127.0.0.1:9"
+        res = v.run_once(self.cfg)
+        self.assertEqual(res["lotto"]["extras"]["JACKPOT"], "$1,000,000")
+        self.srv = FakeServer(fake_postgrest([]))
+
+    def test_all_games_has_jackpot_column(self):
+        v.run_once(self.cfg)
+        with open(os.path.join(self.d, "out", "all_games.csv"), encoding="utf-8-sig") as f:
+            self.assertEqual(f.readline().strip(), "Key,Game,Date,DRAW_ID,JACKPOT")
+
+
 class DrawTextTests(unittest.TestCase):
     def test_draw_id_prefix(self):
         with tempfile.TemporaryDirectory() as d:
@@ -449,6 +501,28 @@ class VmixPushTests(unittest.TestCase):
         self.assertEqual(which("Daily Cash 4 Night.vmix"), "cash4_night")
         self.assertEqual(which("Play Way Morning.vmix"), "playway_morning")
         self.assertEqual(which("Lotto.vmix"), "lotto")
+
+    def test_lotto_jackpot_field(self):
+        calls = []
+
+        def handler(path, q, h):
+            if not q:
+                return 200, "<vmix><preset>C:\\Shows\\Lotto.vmix</preset></vmix>"
+            calls.append(dict(q))
+            return 200, "ok"
+        srv = FakeServer(handler)
+        try:
+            settings = {"vmix_api": {"enabled": True, "url": srv.url + "/api/",
+                                     "title_input": "LottoTitle"}}
+            game = {"preset_match": "Lotto",
+                    "extras": [{"column": "JACKPOT", "vmix_field": "JACKPOT.Text"}]}
+            v.vmix_push(settings, {"lotto": {"game": game, "Date": "d",
+                                             "DRAW_ID": "Draw ID:  2101",
+                                             "extras": {"JACKPOT": "$1,250,000"}}})
+            self.assertIn(("JACKPOT.Text", "$1,250,000"),
+                          [(c["SelectedName"], c["Value"]) for c in calls])
+        finally:
+            srv.close()
 
     def test_wrong_field_name_does_not_crash(self):
         calls = self.run_push(set())

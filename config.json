@@ -463,6 +463,20 @@
           "label_regex": "\\bLotto\\b(?!\\s*(?:Plus|Super))",
           "window": 400
         }
+      ],
+      "extras": [
+        {
+          "column": "JACKPOT",
+          "vmix_field": "JACKPOT.Text",
+          "format": "${0:,.0f}",
+          "override_key": "jackpot",
+          "source": {
+            "table": "lotto_results",
+            "value_column": "jackpot_amount",
+            "date_column": "draw_date",
+            "use_latest": true
+          }
+        }
       ]
     }
   }

@@ -121,6 +121,20 @@ the next day:
 { "pick3_morning": { "date": "2026-10-03", "next_draw": 12345 } }
 ```
 
+An entry can also set the Lotto jackpot, with or without `next_draw`:
+`{ "lotto": { "date": "2026-10-03", "jackpot": 1500000 } }`.
+
+### d) Lotto jackpot
+
+The Lotto game has an extra value, `JACKPOT`, read from
+`lotto_results.jackpot_amount` and formatted as `$1,250,000` (`format` under the
+lotto game's `extras`). It's written as a `JACKPOT` column in `lotto.csv` and
+`all_games.csv`, and pushed to the `JACKPOT.Text` title field (`vmix_field`).
+The order is: an override for today, then today's Lotto row, then the latest
+earlier draw (`use_latest`), then the last good value. After a roll-over the
+latest draw's amount is out of date, so enter today's row or use an override.
+Other per-game values can be added the same way in `extras`.
+
 ### Safety nets
 
 * If every source fails, the last good value from `state.json` is kept.

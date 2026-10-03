@@ -382,6 +382,13 @@ C:\\vMixLotto\\
             "1, or today's row if it is already there."),
           tip("On a disrupted or cancelled day the count can be off. Use a manual "
               "override (6c) for that day."),
+          p("Lotto jackpot", H2),
+          p("For Lotto the program also reads <b>lotto_results.jackpot_amount</b> into a "
+            "<b>JACKPOT</b> value, shown as e.g. <b>$1,250,000</b>. If today's Lotto row "
+            "has a jackpot, that is used; otherwise the jackpot of the latest draw. "
+            "That can be too low after a roll-over, so enter today's Lotto row "
+            "(with its jackpot) before the show, or use an override (6c):"),
+          code('{ "lotto": { "date": "2026-10-03", "jackpot": 1500000 } }'),
           PageBreak(),
           p("6b. The website (backup source)", H2),
           p("The website address is near the top of config.json:"),
@@ -415,7 +422,9 @@ C:\\vMixLotto\\
 }
 '''),
           p("The override only applies on that date, so a forgotten override cannot "
-            "show a wrong number tomorrow. The game names (keys) are listed in the "
+            "show a wrong number tomorrow. An entry can also hold a Lotto "
+            "<b>jackpot</b> (6a), with or without next_draw. The game names (keys) are "
+            "listed in the "
             "Appendix."),
           PageBreak()]
 
@@ -430,6 +439,10 @@ C:\\vMixLotto\\
               "its name (title) to <b>LottoTitle</b>. Use this same name in every preset.",
               "Save the preset.",
           ]),
+          p("The <b>Lotto</b> title also needs a text field for the jackpot named "
+            "<b>JACKPOT</b> (vMix lists it as <b>JACKPOT.Text</b>). If yours has another "
+            "name, change \"vmix_field\" under the lotto game's \"extras\" in "
+            "config.json."),
           warn("Field names must match exactly, including capitals and the underscore: "
                "<b>DRAW_ID.Text</b>, not Draw_ID.Text or DRAW ID.Text. If a title uses "
                "different names, change \"date_field\" and \"draw_field\" in the "
@@ -455,7 +468,8 @@ C:\\vMixLotto\\
               "Open the title's <b>Title Editor</b> (click the cog on the title input, "
               "or right-click > Title Editor) and click <b>Data Source</b>.",
               "For <b>Date.Text</b> choose this data source and column <b>Date</b>. "
-              "For <b>DRAW_ID.Text</b> choose column <b>DRAW_ID</b>. Close the window.",
+              "For <b>DRAW_ID.Text</b> choose column <b>DRAW_ID</b>. In the Lotto preset "
+              "also bind <b>JACKPOT.Text</b> to column <b>JACKPOT</b>. Close the window.",
               "Check the preview: the date and draw ID should appear in the title.",
               "<b>Save the preset</b> (File/Save). The link is stored inside the .vmix "
               "file, so you never have to do this again for that preset.",
@@ -588,6 +602,8 @@ C:\Users\user\Documents\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
                  ["Day spelling", "config.json: day_names", "\"Mon\" without the dot"],
                  ["Date layout", "config.json: pattern",
                   "\"{day} {date} {month}, {year}\" gives Mon. 9th Sept., 2026"],
+                 ["Jackpot look", "config.json: lotto > extras > format",
+                  "\"EC${0:,.0f}\" or \"${0:,.2f}\" (cents)"],
                  ["Draw ID text", "config.json: draw_format (now \"Draw ID:  {0}\")",
                   "\"Draw #{0}\", or \"{0:06d}\" for leading zeros"],
                  ["Recording folder / name", "config.json: recordings > folder, filename",
