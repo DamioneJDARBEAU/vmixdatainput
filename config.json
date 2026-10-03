@@ -2,7 +2,7 @@
   "settings": {
     "website_url": "https://about.nla.gd/",
     "supabase": {
-      "url": "https://YOUR-PROJECT-ID.supabase.co",
+      "url": "https://wynigmiquitkuujgviqg.supabase.co",
       "key_file": "supabase_key.txt"
     },
     "output_folder": "output",
