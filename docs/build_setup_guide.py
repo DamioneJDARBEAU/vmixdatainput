@@ -152,7 +152,7 @@ def story():
           p("Automatic date and next draw ID for every game title", SUB),
           Spacer(1, 0.4 * inch)]
     sample = Table([[p("<b>Date</b>", CELL), p("Mon. 9th Sept. 2026", CELL)],
-                    [p("<b>DRAW_ID</b>", CELL), p("10452  (last draw number + 1)", CELL)]],
+                    [p("<b>DRAW_ID</b>", CELL), p("Draw ID:&nbsp; 10452&nbsp;&nbsp; (last draw number + 1)", CELL)]],
                    colWidths=[1.4 * inch, 3.2 * inch], hAlign="CENTER")
     sample.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.8, NAVY),
@@ -174,9 +174,10 @@ def story():
                  "8. Connect each preset to its data file (Data Source)",
                  "9. Optional: direct push through the vMix Web API",
                  "10. Start automatically with Windows",
-                 "11. Daily checklist",
-                 "12. Changing things later",
-                 "13. Troubleshooting",
+                 "11. Name and file the recordings",
+                 "12. Daily checklist",
+                 "13. Changing things later",
+                 "14. Troubleshooting",
                  "Appendix: game keys"]:
         s.append(p(line))
     s.append(PageBreak())
@@ -469,7 +470,7 @@ C:\\vMixLotto\\
     rows.append(["Lotto", "lotto.csv"])
     s += [table(rows, [2.6, 3.9]),
           p("Each file has a header row and one data row, for example:"),
-          code("Game,Date,DRAW_ID\nPlay Way Night,Sat. 3rd Oct. 2026,3513"),
+          code("Game,Date,DRAW_ID\nPlay Way Night,Sat. 3rd Oct. 2026,Draw ID:  3513"),
           PageBreak()]
 
     # ---------------------------------------------------------------- 9
@@ -519,7 +520,52 @@ C:\\vMixLotto\\
           PageBreak()]
 
     # ---------------------------------------------------------------- 11
-    s += [p("11. Daily checklist", H1),
+    s += [p("11. Name and file the recordings", H1),
+          p("vMix cannot name a recording after the draw, so the program does it. "
+            "vMix records into a holding folder; as soon as you stop recording, the "
+            "program moves the file and renames it:"),
+          code(r"""
+C:\Users\user\vmixstorage\2026-10-03\Pick_3\Pick_3_7930_Night_2026-10-03.mp4
+C:\Users\user\vmixstorage\2026-10-03\Cash_4\Cash_4_8120_Morning_2026-10-03.mp4
+C:\Users\user\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
+"""),
+          p("The game and period come from the preset that was loaded when recording "
+            "<b>started</b>, and the draw number is the one shown in the title. "
+            "Loading the next preset straight after stopping is fine."),
+          p("Set up vMix (once):", H2),
+          steps([
+              "In File Explorer create the folder "
+              "<font face='Courier'>C:\\Users\\user\\vmixstorage\\_incoming</font>.",
+              "In vMix open <b>Settings > Recording</b>. Set the <b>folder</b> to "
+              "<font face='Courier'>C:\\Users\\user\\vmixstorage\\_incoming</font> "
+              "and choose an <b>MP4</b> format. Click OK.",
+              "Check that <b>Settings > Web Controller</b> is enabled (section 9). The "
+              "program uses it to see which preset is loaded and when recording "
+              "starts and stops.",
+              "Keep <b>run_loop.bat</b> running (section 10). It checks vMix every 5 "
+              "seconds.",
+              "Record as usual with the vMix <b>Record</b> button. A few seconds after "
+              "you stop, the window shows <font face='Courier'>Recording saved: "
+              "C:\\Users\\user\\vmixstorage\\...</font>",
+          ]),
+          warn("If the Windows user name is not <b>user</b>, change the two paths "
+               "starting <font face='Courier'>C:\\\\Users\\\\user</font> in the "
+               "<font face='Courier'>\"recordings\"</font> part of config.json "
+               "(note the double back-slashes) and the vMix recording folder."),
+          bullets([
+              "A second recording of the same draw is saved with <b>_2</b>, <b>_3</b> "
+              "... added; nothing is ever overwritten.",
+              "If the preset matches no game, the file stays in _incoming and the "
+              "window says so. Rename it by hand or add the preset name to that "
+              "game's preset_match list (section 9).",
+              "If the draw number was unknown, the name contains <b>NoDraw</b>.",
+              "To turn this off, set <font face='Courier'>\"enabled\": false</font> "
+              "under <font face='Courier'>\"recordings\"</font>.",
+          ]),
+          PageBreak()]
+
+    # ---------------------------------------------------------------- 12
+    s += [p("12. Daily checklist", H1),
           bullets([
               "The <b>vMix Lotto Data Feeder</b> window is open on the vMix PC.",
               "Its latest lines show a draw number and <b>(supabase)</b> or "
@@ -532,8 +578,8 @@ C:\\vMixLotto\\
           ]),
           ]
 
-    # ---------------------------------------------------------------- 12
-    s += [p("12. Changing things later", H1),
+    # ---------------------------------------------------------------- 13
+    s += [p("13. Changing things later", H1),
           table([["To change...", "Edit", "Example"],
                  ["Website address", "config.json: website_url",
                   "\"https://results.nla.gd/\""],
@@ -542,8 +588,10 @@ C:\\vMixLotto\\
                  ["Day spelling", "config.json: day_names", "\"Mon\" without the dot"],
                  ["Date layout", "config.json: pattern",
                   "\"{day} {date} {month}, {year}\" gives Mon. 9th Sept., 2026"],
-                 ["Draw ID look", "config.json: add \"draw_format\" to a game",
-                  "\"Draw #{0}\" or \"{0:06d}\" (leading zeros)"],
+                 ["Draw ID text", "config.json: draw_format (now \"Draw ID:  {0}\")",
+                  "\"Draw #{0}\", or \"{0:06d}\" for leading zeros"],
+                 ["Recording folder / name", "config.json: recordings > folder, filename",
+                  "\"{game}-{period}-{draw}{ext}\""],
                  ["Add / rename a game", "config.json: copy a game block, change the key, "
                   "name, preset_match and sources", "Run run_once.bat to create its file"],
                  ["Update interval", "run_loop.bat: --loop 300", "--loop 120 = 2 minutes"]],
@@ -552,8 +600,8 @@ C:\\vMixLotto\\
             "update, so there is no need to restart it after saving."),
           ]
 
-    # ---------------------------------------------------------------- 13
-    s += [PageBreak(), p("13. Troubleshooting", H1),
+    # ---------------------------------------------------------------- 14
+    s += [PageBreak(), p("14. Troubleshooting", H1),
           table([["Problem", "Fix"],
                  ["\"Python was not found\"", "Repeat step 3 and tick \"Add python.exe to PATH\"."],
                  ["Window opens and closes at once",
@@ -588,6 +636,9 @@ C:\\vMixLotto\\
                  ["\"vMix: could not set 'Date.Text'...\"",
                   "The title input is not named LottoTitle or the field name differs "
                   "(section 7). The CSV files are still updated."],
+                 ["Recording stays in _incoming",
+                  "The loaded preset matches no game (add its name to preset_match), "
+                  "or run_loop.bat is not running."],
                  ["\"vMix API not reachable\"",
                   "Only matters for section 9. Enable Settings > Web Controller."],
                  ["\"no game matches loaded preset\"",

@@ -41,6 +41,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sqlite3
 import sys
 import time
@@ -436,6 +437,125 @@ def http_get_nocache(url):
         return r.read().decode("utf-8", errors="replace")
 
 
+def vmix_status(settings):
+    """(preset file name, is_recording) from the vMix API, or None."""
+    vm = settings.get("vmix_api") or {}
+    base = vm.get("url", "http://127.0.0.1:8088/api/").rstrip("/") + "/"
+    try:
+        root = ET.fromstring(http_get_nocache(base))
+    except Exception:
+        return None
+    preset = os.path.basename(root.findtext("preset") or "")
+    recording = (root.findtext("recording") or "").strip().lower() == "true"
+    return preset, recording
+
+
+def game_for_preset(games, preset_file):
+    for key, game in games.items():
+        if preset_matches(game.get("preset_match"), preset_file):
+            return key
+    return None
+
+
+def clean_name(text, space="_"):
+    text = re.sub(r'[<>:"/\\|?*]', "", str(text)).strip()
+    return re.sub(r"\s+", space, text) if space is not None else text
+
+
+def recording_target(rc, game, draw, day, ext):
+    """Folder and file name for a finished recording."""
+    space = rc.get("space_replacement", "_")
+    values = {
+        "date": day.strftime(rc.get("date_format", "%Y-%m-%d")),
+        "game": clean_name(game.get("game_label") or game.get("name", ""), space),
+        "period": clean_name(game.get("period_label", ""), space),
+        "draw": draw if draw is not None else "NoDraw",
+        "ext": ext,
+    }
+    folder = rc.get("folder", r"C:\Users\user\vmixstorage\{date}\{game}").format(**values)
+    name = rc.get("filename", "{game}_{draw}_{period}_{date}{ext}").format(**values)
+    sep = space or ""
+    if sep:  # a game without a period (Lotto) would leave "__"
+        name = re.sub(re.escape(sep) + "{2,}", sep, name)
+        name = name.replace(sep + ext, ext).strip(sep)
+    return folder, name
+
+
+class RecordingFiler:
+    """Moves finished vMix recordings to <date>\\<game>\\<game>_<draw>_<period>_<date>.mp4.
+
+    vMix records into rc["watch_folder"]. When a recording starts, the loaded
+    preset tells us the game; the draw number is taken from the current
+    results. When vMix stops recording, settled files are moved and renamed.
+    """
+
+    def __init__(self):
+        self.active = None  # {"key", "draw", "date", "started"}
+
+    def tick(self, cfg, results):
+        settings = cfg.get("settings", {})
+        rc = settings.get("recordings") or {}
+        if not rc.get("enabled"):
+            return
+        status = vmix_status(settings)
+        if status is None:
+            return  # vMix not reachable: never move files we cannot judge
+        preset, recording = status
+        games = cfg["games"]
+        if recording:
+            if self.active is None or self.active.get("stopped"):
+                key = game_for_preset(games, preset)
+                draw = (results or {}).get(key, {}).get("draw") if key else None
+                self.active = {"key": key, "draw": draw, "date": dt.date.today(),
+                               "started": time.time()}
+                log("Recording started: %s (preset %s, draw %s)"
+                    % (key or "unknown game", preset or "-", draw))
+            return
+        if self.active:  # keep it: files may still be settling after the stop
+            self.active["stopped"] = True
+        self.file_finished(rc, games, results, preset)
+
+    def file_finished(self, rc, games, results, preset):
+        watch = resolve(rc.get("watch_folder", r"C:\Users\user\vmixstorage\_incoming"))
+        if not os.path.isdir(watch):
+            return
+        exts = [e.lower() for e in rc.get("extensions", [".mp4", ".mov", ".mkv", ".avi"])]
+        settle = float(rc.get("settle_seconds", 5))
+        now = time.time()
+        for name in sorted(os.listdir(watch)):
+            src = os.path.join(watch, name)
+            ext = os.path.splitext(name)[1].lower()
+            if not os.path.isfile(src) or ext not in exts:
+                continue
+            st = os.stat(src)
+            if st.st_size == 0 or now - st.st_mtime < settle:
+                continue  # still being written
+            info = self.active
+            if not info or not info.get("key") or st.st_mtime < info["started"] - 60:
+                key = game_for_preset(games, preset)  # file from before we watched
+                info = {"key": key,
+                        "draw": (results or {}).get(key, {}).get("draw") if key else None,
+                        "date": dt.datetime.fromtimestamp(st.st_mtime).date()}
+            if not info.get("key"):
+                log("Recording %s: no game matches preset '%s' - left in %s"
+                    % (name, preset, watch))
+                continue
+            folder, new_name = recording_target(rc, games[info["key"]], info["draw"],
+                                                info["date"], ext)
+            os.makedirs(folder, exist_ok=True)
+            dest = os.path.join(folder, new_name)
+            stem, n = os.path.splitext(dest)[0], 2
+            while os.path.exists(dest):  # never overwrite an earlier take
+                dest = "%s_%d%s" % (stem, n, ext)
+                n += 1
+            try:
+                shutil.move(src, dest)
+            except OSError as e:  # e.g. still locked by vMix - try next tick
+                log("Recording %s not moved yet: %s" % (name, e))
+                continue
+            log("Recording saved: %s" % dest)
+
+
 def run_once(cfg):
     _page_cache.clear()
     settings = cfg.get("settings", {})
@@ -452,13 +572,14 @@ def run_once(cfg):
     results = {}
     for key, game in games.items():
         draw, origin = next_draw_id(key, game, settings, state, overrides, today)
-        draw_text = "" if draw is None else (
-            game.get("draw_format", "{0}").format(draw))
-        results[key] = {"game": game, "Date": date_text, "DRAW_ID": draw_text}
+        fmt = game.get("draw_format") or settings.get("draw_format") or "{0}"
+        draw_text = "" if draw is None else fmt.format(draw)
+        results[key] = {"game": game, "Date": date_text, "DRAW_ID": draw_text,
+                        "draw": draw}
         if draw is not None:
             state[key] = {"next_draw": draw, "source": origin,
                           "updated": dt.datetime.now().isoformat(timespec="seconds")}
-        log("  %-22s next draw %-8s (%s)" % (key, draw_text or "-", origin))
+        log("  %-22s next draw %-8s (%s)" % (key, "-" if draw is None else draw, origin))
 
         buf = io.StringIO()
         w = csv.writer(buf)
@@ -479,6 +600,7 @@ def run_once(cfg):
         vmix_push(settings, results)
     except Exception as e:  # the CSV files are already written
         log("vMix push failed: %s" % e)
+    return results
 
 
 def probe(cfg):
@@ -592,16 +714,27 @@ def main():
     if args.probe:
         probe(cfg)
         return
+    filer = RecordingFiler()
+    results = {}
+    next_refresh = 0.0
     while True:
+        if time.time() >= next_refresh:
+            try:
+                results = run_once(cfg) or results
+            except Exception as e:
+                log("ERROR: %s" % e)
+                if not args.loop:
+                    sys.exit(1)
+            next_refresh = time.time() + args.loop
         try:
-            run_once(cfg)
+            filer.tick(cfg, results)
         except Exception as e:
-            log("ERROR: %s" % e)
-            if not args.loop:
-                sys.exit(1)
+            log("Recording filing error: %s" % e)
         if not args.loop:
             break
-        time.sleep(args.loop)
+        rc = cfg.get("settings", {}).get("recordings") or {}
+        poll = float(rc.get("poll_seconds", 5)) if rc.get("enabled") else args.loop
+        time.sleep(max(1.0, min(poll, next_refresh - time.time())))
         cfg = load_json(args.config) or cfg  # pick up config edits live
 
 

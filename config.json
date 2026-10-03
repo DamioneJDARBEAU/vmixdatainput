@@ -8,12 +8,29 @@
     "output_folder": "output",
     "state_file": "state.json",
     "overrides_file": "overrides.json",
+    "draw_format": "Draw ID:  {0}",
     "vmix_api": {
       "enabled": true,
       "url": "http://127.0.0.1:8088/api/",
       "title_input": "LottoTitle",
       "date_field": "Date.Text",
       "draw_field": "DRAW_ID.Text"
+    },
+    "recordings": {
+      "enabled": true,
+      "watch_folder": "C:\\Users\\user\\vmixstorage\\_incoming",
+      "folder": "C:\\Users\\user\\vmixstorage\\{date}\\{game}",
+      "filename": "{game}_{draw}_{period}_{date}{ext}",
+      "date_format": "%Y-%m-%d",
+      "space_replacement": "_",
+      "extensions": [
+        ".mp4",
+        ".mov",
+        ".mkv",
+        ".avi"
+      ],
+      "poll_seconds": 5,
+      "settle_seconds": 5
     }
   },
   "date_format": {
@@ -45,6 +62,8 @@
   "games": {
     "pick3_morning": {
       "name": "Pick 3 Morning",
+      "game_label": "Pick 3",
+      "period_label": "Morning",
       "preset_match": [
         "Daily Pick 3 Morning",
         "Pick 3 Morning",
@@ -76,6 +95,8 @@
     },
     "pick3_midday": {
       "name": "Pick 3 Midday",
+      "game_label": "Pick 3",
+      "period_label": "Midday",
       "preset_match": [
         "Daily Pick 3 Midday",
         "Pick 3 Midday",
@@ -107,6 +128,8 @@
     },
     "pick3_afternoon": {
       "name": "Pick 3 Afternoon",
+      "game_label": "Pick 3",
+      "period_label": "Afternoon",
       "preset_match": [
         "Daily Pick 3 Afternoon",
         "Pick 3 Afternoon",
@@ -138,6 +161,8 @@
     },
     "pick3_night": {
       "name": "Pick 3 Night",
+      "game_label": "Pick 3",
+      "period_label": "Night",
       "preset_match": [
         "Daily Pick 3 Night",
         "Pick 3 Night",
@@ -169,6 +194,8 @@
     },
     "playway_morning": {
       "name": "Play Way Morning",
+      "game_label": "Play Way",
+      "period_label": "Morning",
       "preset_match": [
         "Play Way Morning"
       ],
@@ -198,6 +225,8 @@
     },
     "playway_midday": {
       "name": "Play Way Midday",
+      "game_label": "Play Way",
+      "period_label": "Midday",
       "preset_match": [
         "Play Way Midday"
       ],
@@ -227,6 +256,8 @@
     },
     "playway_afternoon": {
       "name": "Play Way Afternoon",
+      "game_label": "Play Way",
+      "period_label": "Afternoon",
       "preset_match": [
         "Play Way Afternoon"
       ],
@@ -256,6 +287,8 @@
     },
     "playway_night": {
       "name": "Play Way Night",
+      "game_label": "Play Way",
+      "period_label": "Night",
       "preset_match": [
         "Play Way Night"
       ],
@@ -285,6 +318,8 @@
     },
     "cash4_morning": {
       "name": "Cash 4 Morning",
+      "game_label": "Cash 4",
+      "period_label": "Morning",
       "preset_match": [
         "Daily Cash 4 Morning",
         "Cash 4 Morning"
@@ -315,6 +350,8 @@
     },
     "cash4_midday": {
       "name": "Cash 4 Midday",
+      "game_label": "Cash 4",
+      "period_label": "Midday",
       "preset_match": [
         "Daily Cash 4 Midday",
         "Cash 4 Midday"
@@ -345,6 +382,8 @@
     },
     "cash4_afternoon": {
       "name": "Cash 4 Afternoon",
+      "game_label": "Cash 4",
+      "period_label": "Afternoon",
       "preset_match": [
         "Daily Cash 4 Afternoon",
         "Cash 4 Afternoon"
@@ -375,6 +414,8 @@
     },
     "cash4_night": {
       "name": "Cash 4 Night",
+      "game_label": "Cash 4",
+      "period_label": "Night",
       "preset_match": [
         "Daily Cash 4 Night",
         "Cash 4 Night"
@@ -405,6 +446,8 @@
     },
     "lotto": {
       "name": "Lotto",
+      "game_label": "Lotto",
+      "period_label": "",
       "preset_match": "Lotto",
       "title_input": "LottoTitle",
       "increment": 1,

@@ -5,7 +5,7 @@ Fills two fields in each game's vMix title:
 | Field          | Example                | Where it comes from                                   |
 |----------------|------------------------|-------------------------------------------------------|
 | `Date.Text`    | `Mon. 9th Sept. 2026`  | PC clock, formatted by the script                     |
-| `DRAW_ID.Text` | `10452`                | last published draw number **+ 1**                    |
+| `DRAW_ID.Text` | `Draw ID:  10452`      | today's draw number (`draw_format`, two spaces)       |
 
 **Step-by-step setup guide (PDF): [`docs/vMix_Lotto_Setup_Guide.pdf`](docs/vMix_Lotto_Setup_Guide.pdf)**
 
@@ -197,8 +197,33 @@ In `config.json` → `date_format`:
 * `month_names` – e.g. use `"Sep."` instead of `"Sept."`
 * `pattern` – e.g. `"{day} {date} {month}, {year}"` gives `Mon. 9th Sept., 2026`
 
-Per game, `draw_format` can pad or prefix the number:
-`"Draw #{0}"` or `"{0:06d}"`.
+The draw text comes from `settings.draw_format`, currently `"Draw ID:  {0}"`
+(two spaces before the number). A game can have its own `draw_format`.
+Other examples: `"Draw #{0}"`, or `"{0:06d}"` for leading zeros.
+
+## Recordings: automatic folder and file name
+
+vMix can't name a recording after the draw, so the feeder files it. vMix records
+into `C:\Users\user\vmixstorage\_incoming`. When recording stops, the file is
+moved and renamed to:
+
+```
+C:\Users\user\vmixstorage\<date>\<game>\<game>_<draw>_<period>_<date>.mp4
+e.g. C:\Users\user\vmixstorage\2026-10-03\Pick_3\Pick_3_7930_Night_2026-10-03.mp4
+     C:\Users\user\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
+```
+
+* The game and period come from the preset loaded when recording **started**
+  (each game's `game_label` / `period_label`). The draw number is the one in the
+  title. Loading the next preset right after stopping is fine.
+* vMix setup: **Settings → Recording**, set the folder to `…\vmixstorage\_incoming`
+  and choose an MP4 format. The **Web Controller** must be enabled, and
+  `run_loop.bat` must be running (it checks vMix every `poll_seconds`).
+* Paths, the date format and the name pattern are in `settings.recordings`
+  (`watch_folder`, `folder`, `filename`, `date_format`, `space_replacement`).
+  Change `user` if the Windows user name is different.
+* Takes are never overwritten (`_2`, `_3` …). Unknown draw → `NoDraw`. If no game
+  matches the preset, the file stays in `_incoming` and the log says so.
 
 ## Tests
 

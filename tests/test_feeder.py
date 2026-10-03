@@ -2,6 +2,7 @@ import datetime as dt
 import http.server
 import json
 import threading
+import time
 import urllib.parse
 import os
 import sqlite3
@@ -285,6 +286,116 @@ class SupabaseSlotTests(unittest.TestCase):
 
     def test_empty_table(self):
         self.assertIsNone(self.next_for("midday", (2026, 10, 3)))
+
+
+class DrawTextTests(unittest.TestCase):
+    def test_draw_id_prefix(self):
+        with tempfile.TemporaryDirectory() as d:
+            cfg = {"settings": {"output_folder": os.path.join(d, "out"),
+                                "state_file": os.path.join(d, "state.json"),
+                                "overrides_file": os.path.join(d, "ov.json"),
+                                "draw_format": "Draw ID:  {0}"},
+                   "games": {"lotto": {"name": "Lotto", "sources": []}}}
+            with open(os.path.join(d, "ov.json"), "w") as f:
+                json.dump({"lotto": {"date": dt.date.today().isoformat(),
+                                     "next_draw": 7930}}, f)
+            res = v.run_once(cfg)
+            self.assertEqual(res["lotto"]["DRAW_ID"], "Draw ID:  7930")
+            self.assertEqual(res["lotto"]["draw"], 7930)
+            with open(os.path.join(d, "out", "lotto.csv"), encoding="utf-8-sig") as f:
+                self.assertIn(",Draw ID:  7930", f.read())
+
+    def test_shipped_config_format(self):
+        cfg = v.load_json(os.path.join(os.path.dirname(__file__), "..", "config.json"))
+        self.assertEqual(cfg["settings"]["draw_format"].format(7930), "Draw ID:  7930")
+
+
+class RecordingTests(unittest.TestCase):
+    RC = {"folder": "{date}/{game}", "filename": "{game}_{draw}_{period}_{date}{ext}"}
+
+    def test_names(self):
+        day = dt.date(2026, 10, 3)
+        g = {"game_label": "Pick 3", "period_label": "Night"}
+        self.assertEqual(v.recording_target(self.RC, g, 7930, day, ".mp4"),
+                         ("2026-10-03/Pick_3", "Pick_3_7930_Night_2026-10-03.mp4"))
+        lotto = {"game_label": "Lotto", "period_label": ""}
+        self.assertEqual(v.recording_target(self.RC, lotto, 2101, day, ".mp4")[1],
+                         "Lotto_2101_2026-10-03.mp4")
+        self.assertEqual(v.recording_target(self.RC, g, None, day, ".mp4")[1],
+                         "Pick_3_NoDraw_Night_2026-10-03.mp4")
+
+    def test_shipped_config_labels(self):
+        cfg = v.load_json(os.path.join(os.path.dirname(__file__), "..", "config.json"))
+        rc = cfg["settings"]["recordings"]
+        folder, name = v.recording_target(rc, cfg["games"]["cash4_afternoon"], 7930,
+                                          dt.date(2026, 10, 3), ".mp4")
+        self.assertEqual(folder, r"C:\Users\user\vmixstorage\2026-10-03\Cash_4")
+        self.assertEqual(name, "Cash_4_7930_Afternoon_2026-10-03.mp4")
+
+    def test_filer_moves_recording_after_stop(self):
+        state = {"preset": "C:\\Shows\\Pick 3 Night.vmix", "rec": "True"}
+
+        def handler(path, q, h):
+            return 200, ("<vmix><preset>%s</preset><recording>%s</recording></vmix>"
+                         % (state["preset"], state["rec"]))
+        srv = FakeServer(handler)
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                watch = os.path.join(d, "incoming")
+                os.makedirs(watch)
+                rc = {"enabled": True, "watch_folder": watch, "settle_seconds": 0,
+                      "folder": os.path.join(d, "store", "{date}", "{game}"),
+                      "filename": "{game}_{draw}_{period}_{date}{ext}"}
+                games = {
+                    "pick3_night": {"game_label": "Pick 3", "period_label": "Night",
+                                    "preset_match": ["Pick 3 Night", "Daily 3 Night"]},
+                    "cash4_morning": {"game_label": "Cash 4", "period_label": "Morning",
+                                      "preset_match": ["Cash 4 Morning"]}}
+                cfg = {"settings": {"vmix_api": {"url": srv.url + "/api/"},
+                                    "recordings": rc}, "games": games}
+                results = {"pick3_night": {"draw": 7930}, "cash4_morning": {"draw": 100}}
+                filer = v.RecordingFiler()
+                filer.tick(cfg, results)                 # recording starts
+                f = os.path.join(watch, "capture 1.mp4")
+                with open(f, "wb") as fh:
+                    fh.write(b"video")
+                filer.tick(cfg, results)                 # still recording: untouched
+                self.assertTrue(os.path.exists(f))
+                old = time.time() - 30
+                os.utime(f, (old, old))
+                filer.active["started"] = old - 5
+                state["rec"] = "False"
+                state["preset"] = "C:\\Shows\\Cash 4 Morning.vmix"  # next show loaded
+                filer.tick(cfg, results)
+                day = dt.date.today().isoformat()
+                dest = os.path.join(d, "store", day, "Pick_3",
+                                    "Pick_3_7930_Night_%s.mp4" % day)
+                self.assertTrue(os.path.exists(dest), os.listdir(d))
+                self.assertFalse(os.path.exists(f))
+                # a second take of the same draw is not overwritten
+                state["rec"] = "True"
+                state["preset"] = "C:\\Shows\\Pick 3 Night.vmix"
+                filer.tick(cfg, results)
+                with open(f, "wb") as fh:
+                    fh.write(b"take2")
+                os.utime(f, (time.time() - 30,) * 2)
+                filer.active["started"] = time.time() - 40
+                state["rec"] = "False"
+                filer.tick(cfg, results)
+                self.assertTrue(os.path.exists(dest[:-4] + "_2.mp4"))
+        finally:
+            srv.close()
+
+    def test_filer_does_nothing_without_vmix(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "x.mp4")
+            open(f, "wb").write(b"1")
+            cfg = {"settings": {"vmix_api": {"url": "http://127.0.0.1:9/api/"},
+                                "recordings": {"enabled": True, "watch_folder": d,
+                                               "settle_seconds": 0}},
+                   "games": {}}
+            v.RecordingFiler().tick(cfg, {})
+            self.assertTrue(os.path.exists(f))
 
 
 class VmixPushTests(unittest.TestCase):
