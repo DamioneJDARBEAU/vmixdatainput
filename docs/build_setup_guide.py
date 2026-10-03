@@ -525,9 +525,9 @@ C:\\vMixLotto\\
             "vMix records into a holding folder; as soon as you stop recording, the "
             "program moves the file and renames it:"),
           code(r"""
-C:\Users\user\vmixstorage\2026-10-03\Pick_3\Pick_3_7930_Night_2026-10-03.mp4
-C:\Users\user\vmixstorage\2026-10-03\Cash_4\Cash_4_8120_Morning_2026-10-03.mp4
-C:\Users\user\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
+C:\Users\user\Documents\vmixstorage\2026-10-03\Pick_3\Pick_3_7930_Night_2026-10-03.mp4
+C:\Users\user\Documents\vmixstorage\2026-10-03\Cash_4\Cash_4_8120_Morning_2026-10-03.mp4
+C:\Users\user\Documents\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
 """),
           p("The game and period come from the preset that was loaded when recording "
             "<b>started</b>, and the draw number is the one shown in the title. "
@@ -535,9 +535,9 @@ C:\Users\user\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
           p("Set up vMix (once):", H2),
           steps([
               "In File Explorer create the folder "
-              "<font face='Courier'>C:\\Users\\user\\vmixstorage\\_incoming</font>.",
+              "<font face='Courier'>C:\\Users\\user\\Documents\\vmixstorage\\_incoming</font>.",
               "In vMix open <b>Settings > Recording</b>. Set the <b>folder</b> to "
-              "<font face='Courier'>C:\\Users\\user\\vmixstorage\\_incoming</font> "
+              "<font face='Courier'>C:\\Users\\user\\Documents\\vmixstorage\\_incoming</font> "
               "and choose an <b>MP4</b> format. Click OK.",
               "Check that <b>Settings > Web Controller</b> is enabled (section 9). The "
               "program uses it to see which preset is loaded and when recording "
@@ -546,7 +546,7 @@ C:\Users\user\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
               "seconds.",
               "Record as usual with the vMix <b>Record</b> button. A few seconds after "
               "you stop, the window shows <font face='Courier'>Recording saved: "
-              "C:\\Users\\user\\vmixstorage\\...</font>",
+              "C:\\Users\\user\\Documents\\vmixstorage\\...</font>",
           ]),
           warn("If the Windows user name is not <b>user</b>, change the two paths "
                "starting <font face='Courier'>C:\\\\Users\\\\user</font> in the "

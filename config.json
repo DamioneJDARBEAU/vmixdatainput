@@ -18,8 +18,8 @@
     },
     "recordings": {
       "enabled": true,
-      "watch_folder": "C:\\Users\\user\\vmixstorage\\_incoming",
-      "folder": "C:\\Users\\user\\vmixstorage\\{date}\\{game}",
+      "watch_folder": "C:\\Users\\user\\Documents\\vmixstorage\\_incoming",
+      "folder": "C:\\Users\\user\\Documents\\vmixstorage\\{date}\\{game}",
       "filename": "{game}_{draw}_{period}_{date}{ext}",
       "date_format": "%Y-%m-%d",
       "space_replacement": "_",

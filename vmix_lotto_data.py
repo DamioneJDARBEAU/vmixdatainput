@@ -472,7 +472,7 @@ def recording_target(rc, game, draw, day, ext):
         "draw": draw if draw is not None else "NoDraw",
         "ext": ext,
     }
-    folder = rc.get("folder", r"C:\Users\user\vmixstorage\{date}\{game}").format(**values)
+    folder = rc.get("folder", r"C:\Users\user\Documents\vmixstorage\{date}\{game}").format(**values)
     name = rc.get("filename", "{game}_{draw}_{period}_{date}{ext}").format(**values)
     sep = space or ""
     if sep:  # a game without a period (Lotto) would leave "__"
@@ -516,7 +516,7 @@ class RecordingFiler:
         self.file_finished(rc, games, results, preset)
 
     def file_finished(self, rc, games, results, preset):
-        watch = resolve(rc.get("watch_folder", r"C:\Users\user\vmixstorage\_incoming"))
+        watch = resolve(rc.get("watch_folder", r"C:\Users\user\Documents\vmixstorage\_incoming"))
         if not os.path.isdir(watch):
             return
         exts = [e.lower() for e in rc.get("extensions", [".mp4", ".mov", ".mkv", ".avi"])]

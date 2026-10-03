@@ -329,7 +329,7 @@ class RecordingTests(unittest.TestCase):
         rc = cfg["settings"]["recordings"]
         folder, name = v.recording_target(rc, cfg["games"]["cash4_afternoon"], 7930,
                                           dt.date(2026, 10, 3), ".mp4")
-        self.assertEqual(folder, r"C:\Users\user\vmixstorage\2026-10-03\Cash_4")
+        self.assertEqual(folder, r"C:\Users\user\Documents\vmixstorage\2026-10-03\Cash_4")
         self.assertEqual(name, "Cash_4_7930_Afternoon_2026-10-03.mp4")
 
     def test_filer_moves_recording_after_stop(self):

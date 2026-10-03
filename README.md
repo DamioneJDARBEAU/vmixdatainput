@@ -204,19 +204,19 @@ Other examples: `"Draw #{0}"`, or `"{0:06d}"` for leading zeros.
 ## Recordings: automatic folder and file name
 
 vMix can't name a recording after the draw, so the feeder files it. vMix records
-into `C:\Users\user\vmixstorage\_incoming`. When recording stops, the file is
+into `C:\Users\user\Documents\vmixstorage\_incoming`. When recording stops, the file is
 moved and renamed to:
 
 ```
-C:\Users\user\vmixstorage\<date>\<game>\<game>_<draw>_<period>_<date>.mp4
-e.g. C:\Users\user\vmixstorage\2026-10-03\Pick_3\Pick_3_7930_Night_2026-10-03.mp4
-     C:\Users\user\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
+C:\Users\user\Documents\vmixstorage\<date>\<game>\<game>_<draw>_<period>_<date>.mp4
+e.g. C:\Users\user\Documents\vmixstorage\2026-10-03\Pick_3\Pick_3_7930_Night_2026-10-03.mp4
+     C:\Users\user\Documents\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
 ```
 
 * The game and period come from the preset loaded when recording **started**
   (each game's `game_label` / `period_label`). The draw number is the one in the
   title. Loading the next preset right after stopping is fine.
-* vMix setup: **Settings → Recording**, set the folder to `…\vmixstorage\_incoming`
+* vMix setup: **Settings → Recording**, set the folder to `C:\Users\user\Documents\vmixstorage\_incoming`
   and choose an MP4 format. The **Web Controller** must be enabled, and
   `run_loop.bat` must be running (it checks vMix every `poll_seconds`).
 * Paths, the date format and the name pattern are in `settings.recordings`
