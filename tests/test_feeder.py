@@ -1,5 +1,8 @@
 import datetime as dt
+import http.server
 import json
+import threading
+import urllib.parse
 import os
 import sqlite3
 import sys
@@ -75,6 +78,154 @@ class DrawSourceTests(unittest.TestCase):
         for g in cfg["games"].values():
             for s in g["sources"]:
                 self.assertIn(s["type"], v.SOURCES)
+            self.assertEqual(g["sources"][0]["type"], "supabase")
+        self.assertEqual(cfg["settings"]["vmix_api"]["date_field"], "Date.Text")
+        self.assertEqual(cfg["settings"]["vmix_api"]["draw_field"], "DRAW_ID.Text")
+
+
+class RunTwiceTests(unittest.TestCase):
+    def test_second_run_reads_its_own_state_and_bom_config(self):
+        with tempfile.TemporaryDirectory() as d:
+            cfg = {"settings": {"output_folder": os.path.join(d, "out"),
+                                "state_file": os.path.join(d, "state.json"),
+                                "overrides_file": os.path.join(d, "ov.json")},
+                   "games": {"lotto": {"name": "Lotto", "sources": []}}}
+            today = dt.date.today().isoformat()
+            with open(os.path.join(d, "ov.json"), "w", encoding="utf-8-sig") as f:
+                json.dump({"lotto": {"date": today, "next_draw": 77}}, f)
+            v.run_once(cfg)
+            v.run_once(cfg)  # used to fail: state.json had a BOM
+            with open(os.path.join(d, "out", "lotto.csv"), encoding="utf-8-sig") as f:
+                self.assertTrue(f.read().splitlines()[1].endswith(",77"))
+            self.assertEqual(v.load_json(os.path.join(d, "state.json"))["lotto"]["next_draw"], 77)
+
+
+class FakeServer:
+    """Tiny local HTTP server; handler(path, query, headers) -> (code, body)."""
+
+    def __init__(self, handler):
+        outer = self
+        self.requests = []
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                u = urllib.parse.urlsplit(self.path)
+                q = urllib.parse.parse_qsl(u.query)
+                outer.requests.append((u.path, q, dict(self.headers)))
+                code, body = handler(u.path, q, self.headers)
+                self.send_response(code)
+                self.end_headers()
+                self.wfile.write(body.encode())
+
+            def log_message(self, *a):
+                pass
+
+        self.httpd = http.server.HTTPServer(("127.0.0.1", 0), H)
+        self.url = "http://127.0.0.1:%d" % self.httpd.server_port
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+
+    def close(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+
+class SupabaseTests(unittest.TestCase):
+    def test_reads_latest_draw(self):
+        def handler(path, q, headers):
+            self.assertEqual(path, "/rest/v1/results")
+            self.assertEqual(headers["apikey"], "KEY")
+            self.assertEqual(headers["Authorization"], "Bearer KEY")
+            qd = dict(q)
+            self.assertEqual(qd["select"], "draw_number")
+            self.assertEqual(qd["order"], "draw_number.desc.nullslast")
+            self.assertEqual(qd["limit"], "1")
+            self.assertEqual(qd["game"], "ilike.Play Way")
+            self.assertEqual(qd["period"], "ilike.Night")
+            return 200, json.dumps([{"draw_number": 3512}])
+
+        srv = FakeServer(handler)
+        try:
+            settings = {"supabase": {"url": srv.url + "/", "key": "KEY",
+                                     "table": "results", "draw_column": "draw_number"}}
+            src = {"type": "supabase", "filters": {"game": "Play Way", "period": "Night"}}
+            self.assertEqual(v.source_supabase(src, {}, settings), 3512)
+            nxt = v.next_draw_id("playway_night", {"sources": [src]}, settings,
+                                 {}, {}, dt.date(2026, 10, 3))
+            self.assertEqual(nxt, (3513, "supabase"))
+        finally:
+            srv.close()
+
+    def test_text_draw_and_empty(self):
+        rows = {"n": [{"draw": "PW-0042"}]}
+        srv = FakeServer(lambda p, q, h: (200, json.dumps(rows["n"])))
+        try:
+            settings = {"supabase": {"url": srv.url, "key": "K", "draw_column": "draw"}}
+            self.assertEqual(v.source_supabase({"type": "supabase"}, {}, settings), 42)
+            rows["n"] = []
+            self.assertIsNone(v.source_supabase({"type": "supabase"}, {}, settings))
+        finally:
+            srv.close()
+
+    def test_http_error_is_readable(self):
+        srv = FakeServer(lambda p, q, h: (401, '{"message":"Invalid API key"}'))
+        try:
+            settings = {"supabase": {"url": srv.url, "key": "bad"}}
+            with self.assertRaisesRegex(RuntimeError, "401.*Invalid API key"):
+                v.source_supabase({"type": "supabase"}, {}, settings)
+        finally:
+            srv.close()
+
+    def test_missing_key(self):
+        with tempfile.TemporaryDirectory() as d:
+            settings = {"supabase": {"url": "https://x.supabase.co",
+                                     "key_file": os.path.join(d, "none.txt")}}
+            old = os.environ.pop("SUPABASE_KEY", None)
+            try:
+                with self.assertRaisesRegex(ValueError, "key not set"):
+                    v.supabase_settings(settings)
+            finally:
+                if old is not None:
+                    os.environ["SUPABASE_KEY"] = old
+
+
+class VmixPushTests(unittest.TestCase):
+    XML = "<vmix><preset>C:\\Shows\\Play Way Night.vmix</preset></vmix>"
+
+    def run_push(self, known_fields):
+        def handler(path, q, headers):
+            qd = dict(q)
+            if not qd:
+                return 200, self.XML
+            if qd.get("SelectedName") in known_fields:
+                return 200, "Function completed successfully."
+            return 500, "Error"
+        srv = FakeServer(handler)
+        try:
+            settings = {"vmix_api": {"enabled": True, "url": srv.url + "/api/",
+                                     "title_input": "LottoTitle",
+                                     "date_field": "Date.Text",
+                                     "draw_field": "DRAW_ID.Text"}}
+            results = {
+                "daily3_night": {"game": {"preset_match": "Daily 3 Night"},
+                                 "Date": "x", "DRAW_ID": "1"},
+                "playway_night": {"game": {"preset_match": "Play Way Night"},
+                                  "Date": "Sat. 3rd Oct. 2026", "DRAW_ID": "3513"},
+            }
+            v.vmix_push(settings, results)  # must never raise
+            return [dict(q) for _, q, _ in srv.requests if q]
+        finally:
+            srv.close()
+
+    def test_sets_both_fields_on_matching_preset(self):
+        calls = self.run_push({"Date.Text", "DRAW_ID.Text"})
+        self.assertEqual(
+            [(c["SelectedName"], c["Value"], c["Input"]) for c in calls],
+            [("Date.Text", "Sat. 3rd Oct. 2026", "LottoTitle"),
+             ("DRAW_ID.Text", "3513", "LottoTitle")])
+
+    def test_wrong_field_name_does_not_crash(self):
+        calls = self.run_push(set())
+        self.assertEqual(len(calls), 2)
 
 
 if __name__ == "__main__":

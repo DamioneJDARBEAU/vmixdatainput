@@ -1,6 +1,13 @@
 {
   "settings": {
     "website_url": "https://about.nla.gd/",
+    "supabase": {
+      "url": "https://YOUR-PROJECT-ID.supabase.co",
+      "key_file": "supabase_key.txt",
+      "table": "results",
+      "draw_column": "draw_number",
+      "order_column": ""
+    },
     "output_folder": "output",
     "state_file": "state.json",
     "overrides_file": "overrides.json",
@@ -8,8 +15,8 @@
       "enabled": true,
       "url": "http://127.0.0.1:8088/api/",
       "title_input": "LottoTitle",
-      "date_field": "DateText.Text",
-      "draw_field": "DrawID.Text"
+      "date_field": "Date.Text",
+      "draw_field": "DRAW_ID.Text"
     }
   },
   "date_format": {
@@ -46,18 +53,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Daily 3",
+            "period": "Morning"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Daily\\s*3\\W{0,20}Morning",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Daily 3",
-            "Morning"
-          ]
         }
       ]
     },
@@ -68,18 +73,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Daily 3",
+            "period": "Midday"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Daily\\s*3\\W{0,20}Midday",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Daily 3",
-            "Midday"
-          ]
         }
       ]
     },
@@ -90,18 +93,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Daily 3",
+            "period": "Afternoon"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Daily\\s*3\\W{0,20}Afternoon",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Daily 3",
-            "Afternoon"
-          ]
         }
       ]
     },
@@ -112,18 +113,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Daily 3",
+            "period": "Night"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Daily\\s*3\\W{0,20}Night",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Daily 3",
-            "Night"
-          ]
         }
       ]
     },
@@ -134,18 +133,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Play Way",
+            "period": "Morning"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Play\\s*Way\\W{0,20}Morning",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Play Way",
-            "Morning"
-          ]
         }
       ]
     },
@@ -156,18 +153,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Play Way",
+            "period": "Midday"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Play\\s*Way\\W{0,20}Midday",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Play Way",
-            "Midday"
-          ]
         }
       ]
     },
@@ -178,18 +173,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Play Way",
+            "period": "Afternoon"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Play\\s*Way\\W{0,20}Afternoon",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Play Way",
-            "Afternoon"
-          ]
         }
       ]
     },
@@ -200,18 +193,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Play Way",
+            "period": "Night"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Play\\s*Way\\W{0,20}Night",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Play Way",
-            "Night"
-          ]
         }
       ]
     },
@@ -222,18 +213,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Daily Pick 3",
+            "period": "Morning"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Morning",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Daily Pick 3",
-            "Morning"
-          ]
         }
       ]
     },
@@ -244,18 +233,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Daily Pick 3",
+            "period": "Midday"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Midday",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Daily Pick 3",
-            "Midday"
-          ]
         }
       ]
     },
@@ -266,18 +253,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Daily Pick 3",
+            "period": "Afternoon"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Afternoon",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Daily Pick 3",
-            "Afternoon"
-          ]
         }
       ]
     },
@@ -288,18 +273,16 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Daily Pick 3",
+            "period": "Night"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Night",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Daily Pick 3",
-            "Night"
-          ]
         }
       ]
     },
@@ -310,18 +293,15 @@
       "increment": 1,
       "sources": [
         {
+          "type": "supabase",
+          "filters": {
+            "game": "Lotto"
+          }
+        },
+        {
           "type": "web",
           "label_regex": "\\bLotto\\b(?!\\s*(?:Plus|Super))",
           "window": 400
-        },
-        {
-          "type": "sqlite",
-          "database": "C:/EmailBlast/results.db",
-          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-          "params": [
-            "Lotto",
-            ""
-          ]
         }
       ]
     }

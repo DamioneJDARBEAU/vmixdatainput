@@ -4,7 +4,7 @@
 ' Change TitleInput / FieldName to match your title.
 
 Dim TitleInput As String = "LottoTitle"
-Dim FieldName As String = "DateText.Text"
+Dim FieldName As String = "Date.Text"
 
 Dim dayNames() As String = {"Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."}
 Dim monthNames() As String = {"Jan.", "Feb.", "Mar.", "Apr.", "May", "June", "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec."}

@@ -3,4 +3,5 @@ state.json
 overrides.json
 __pycache__/
 *.tmp
-probe_result.txt
+check_result.txt
+supabase_key.txt

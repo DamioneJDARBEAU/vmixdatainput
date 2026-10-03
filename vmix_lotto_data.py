@@ -3,14 +3,15 @@
 vMix lottery title data feeder.
 
 For every game/time-period listed in config.json this script produces:
-  * DateText  - today's date, e.g. "Mon. 9th Sept. 2026"
-  * DrawID    - the NEXT draw number (last published draw number + 1)
+  * Date      - today's date, e.g. "Mon. 9th Sept. 2026"
+  * DRAW_ID   - the NEXT draw number (last published draw number + 1)
 
 The results are written to one small CSV file per game (for vMix Data
 Sources) and, optionally, pushed straight into the title that is loaded in
 vMix through the vMix Web API.
 
 Draw numbers are looked up from a list of sources, tried in order, per game:
+  * "supabase" - read the results table of a Supabase project (REST API)
   * "web"      - scrape a web page (URL + regex patterns live in config.json)
   * "json"     - read a JSON API/file and follow a path to the draw number
   * "sqlite"   - query a SQLite database (e.g. the email blast database)
@@ -24,8 +25,9 @@ Only the Python 3.8+ standard library is required.
 Usage:
   python vmix_lotto_data.py                  run once
   python vmix_lotto_data.py --loop 300       run every 300 seconds
-  python vmix_lotto_data.py --probe          show draw-number candidates
-                                             found on the configured web page
+  python vmix_lotto_data.py --probe          show what the website and the
+                                             Supabase table contain, to help
+                                             set up config.json
   python vmix_lotto_data.py --config other.json
 """
 
@@ -40,6 +42,7 @@ import re
 import sqlite3
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -89,18 +92,19 @@ def resolve(path):
 
 def load_json(path, default=None):
     try:
-        with open(resolve(path), "r", encoding="utf-8") as f:
+        # utf-8-sig also accepts files saved by Notepad with a BOM
+        with open(resolve(path), "r", encoding="utf-8-sig") as f:
             return json.load(f)
     except FileNotFoundError:
         return default
 
 
-def write_atomic(path, text):
+def write_atomic(path, text, bom=False):
     """Write via a temp file so vMix never reads a half-written file."""
     path = resolve(path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8-sig", newline="") as f:
+    with open(tmp, "w", encoding="utf-8-sig" if bom else "utf-8", newline="") as f:
         f.write(text)
     for attempt in range(5):
         try:
@@ -217,7 +221,57 @@ def source_csv(src, game, settings):
     return max(nums) if nums else None
 
 
+def supabase_settings(settings):
+    sb = dict(settings.get("supabase") or {})
+    key = sb.get("key") or os.environ.get("SUPABASE_KEY")
+    if not key:
+        try:
+            with open(resolve(sb.get("key_file", "supabase_key.txt")), "r",
+                      encoding="utf-8-sig") as f:
+                key = f.read().strip()
+        except FileNotFoundError:
+            pass
+    if not sb.get("url") or not key:
+        raise ValueError("Supabase url/key not set (see settings.supabase in "
+                         "config.json and supabase_key.txt)")
+    sb["key"] = key
+    sb["url"] = sb["url"].rstrip("/")
+    return sb
+
+
+def supabase_get(sb, path, params):
+    url = "%s/rest/v1/%s" % (sb["url"], path)
+    if params:
+        url += "?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={
+        "apikey": sb["key"], "Authorization": "Bearer " + sb["key"],
+        "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:300]
+        raise RuntimeError("Supabase HTTP %s: %s" % (e.code, detail))
+
+
+def source_supabase(src, game, settings):
+    sb = supabase_settings(settings)
+    table = src.get("table") or sb.get("table", "results")
+    col = src.get("draw_column") or sb.get("draw_column", "draw_number")
+    order = src.get("order_column") or sb.get("order_column") or col
+    params = [("select", col), ("order", order + ".desc.nullslast"), ("limit", "1")]
+    for field, value in (src.get("filters") or {}).items():
+        op = "ilike" if src.get("ignore_case", True) else "eq"
+        params.append((field, "%s.%s" % (op, value)))
+    rows = supabase_get(sb, table, params)
+    if not rows or rows[0].get(col) in (None, ""):
+        return None
+    m = re.search(r"\d+", str(rows[0][col]))
+    return int(m.group()) if m else None
+
+
 SOURCES = {
+    "supabase": source_supabase,
     "web": source_web,
     "json": source_json,
     "sqlite": source_sqlite,
@@ -272,7 +326,11 @@ def vmix_push(settings, results):
     except Exception as e:
         log("vMix API not reachable (%s) - skipped push" % e)
         return
-    root = ET.fromstring(xml_text)
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError as e:
+        log("vMix API returned unreadable XML (%s) - skipped push" % e)
+        return
     preset = os.path.basename(root.findtext("preset") or "").lower()
     if not preset:
         log("vMix has no saved preset loaded - skipped push")
@@ -283,15 +341,23 @@ def vmix_push(settings, results):
         if not match or match not in preset:
             continue
         title = res["game"].get("title_input") or vm.get("title_input")
-        fields = {vm.get("date_field", "DateText.Text"): res["DateText"],
-                  vm.get("draw_field", "DrawID.Text"): res["DrawID"]}
+        fields = {vm.get("date_field", "Date.Text"): res["Date"],
+                  vm.get("draw_field", "DRAW_ID.Text"): res["DRAW_ID"]}
+        ok = True
         for field, value in fields.items():
             if value == "":
                 continue
             q = urllib.parse.urlencode({"Function": "SetText", "Input": title,
                                         "SelectedName": field, "Value": value})
-            http_get_nocache(base + "?" + q)
-        log("vMix: pushed %s into '%s' (preset %s)" % (key, title, preset))
+            try:
+                http_get_nocache(base + "?" + q)
+            except Exception as e:
+                ok = False
+                log("vMix: could not set '%s' on input '%s' (%s). Check that the "
+                    "title input is named '%s' and has a field called '%s'."
+                    % (field, title, e, title, field))
+        if ok:
+            log("vMix: pushed %s into '%s' (preset %s)" % (key, title, preset))
         return
     log("vMix: no game matches loaded preset '%s'" % preset)
 
@@ -319,7 +385,7 @@ def run_once(cfg):
         draw, origin = next_draw_id(key, game, settings, state, overrides, today)
         draw_text = "" if draw is None else (
             game.get("draw_format", "{0}").format(draw))
-        results[key] = {"game": game, "DateText": date_text, "DrawID": draw_text}
+        results[key] = {"game": game, "Date": date_text, "DRAW_ID": draw_text}
         if draw is not None:
             state[key] = {"next_draw": draw, "source": origin,
                           "updated": dt.datetime.now().isoformat(timespec="seconds")}
@@ -327,33 +393,41 @@ def run_once(cfg):
 
         buf = io.StringIO()
         w = csv.writer(buf)
-        w.writerow(["Game", "DateText", "DrawID"])
+        w.writerow(["Game", "Date", "DRAW_ID"])
         w.writerow([game.get("name", key), date_text, draw_text])
-        write_atomic(os.path.join(out_dir, key + ".csv"), buf.getvalue())
+        write_atomic(os.path.join(out_dir, key + ".csv"), buf.getvalue(), bom=True)
 
     # One combined file as well (one row per game) - handy for checking.
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["Key", "Game", "DateText", "DrawID"])
+    w.writerow(["Key", "Game", "Date", "DRAW_ID"])
     for key, res in results.items():
-        w.writerow([key, res["game"].get("name", key), res["DateText"], res["DrawID"]])
-    write_atomic(os.path.join(out_dir, "all_games.csv"), buf.getvalue())
+        w.writerow([key, res["game"].get("name", key), res["Date"], res["DRAW_ID"]])
+    write_atomic(os.path.join(out_dir, "all_games.csv"), buf.getvalue(), bom=True)
 
     write_atomic(state_file, json.dumps(state, indent=2))
-    vmix_push(settings, results)
+    try:
+        vmix_push(settings, results)
+    except Exception as e:  # the CSV files are already written
+        log("vMix push failed: %s" % e)
 
 
 def probe(cfg):
-    """Print every draw-number-looking match on the configured web page(s)."""
+    """Show what the Supabase table and the web page(s) contain."""
     settings = cfg.get("settings", {})
+    probe_supabase(settings)
     urls = {settings.get("website_url")}
     for g in cfg["games"].values():
         for s in g.get("sources", []):
             if s.get("type") == "web" and s.get("url"):
                 urls.add(s["url"])
     for url in filter(None, urls):
-        print("=" * 70 + "\n" + url)
-        text = html_to_text(http_get(url))
+        print("=" * 70 + "\nWEBSITE: " + url)
+        try:
+            text = html_to_text(http_get(url))
+        except Exception as e:
+            print("Could not open the page: %s" % e)
+            continue
         hits = list(re.finditer(DEFAULT_DRAW_REGEX, text, re.I))
         if not hits:
             print("No 'Draw ...<number>' text found. The page may be built by "
@@ -364,6 +438,44 @@ def probe(cfg):
             print("...%s[[%s]]%s..." % (text[s:m.start()], m.group(0),
                                         text[m.end():m.end() + 60]))
             print("-" * 70)
+
+
+def probe_supabase(settings):
+    if not settings.get("supabase"):
+        return
+    print("=" * 70 + "\nSUPABASE")
+    try:
+        sb = supabase_settings(settings)
+    except Exception as e:
+        print(e)
+        return
+    print("Project: %s" % sb["url"])
+    try:  # table list (only works if the key may read the API description)
+        spec = supabase_get(sb, "", None)
+        names = sorted(k.strip("/") for k in spec.get("paths", {})
+                       if k.strip("/") and not k.startswith("/rpc/"))
+        print("Tables/views visible to this key: %s" % (", ".join(names) or "-"))
+    except Exception as e:
+        print("Could not list tables (%s)" % e)
+    table = sb.get("table", "results")
+    try:
+        params = [("select", "*"), ("limit", "5")]
+        if sb.get("order_column") or sb.get("draw_column"):
+            params.append(("order", (sb.get("order_column") or sb["draw_column"])
+                           + ".desc.nullslast"))
+        rows = supabase_get(sb, table, params)
+    except Exception as e:
+        print("Could not read table '%s': %s" % (table, e))
+        return
+    if not rows:
+        print("Table '%s' returned no rows. If it has data, the key is not "
+              "allowed to read it (Row Level Security) - see the setup guide."
+              % table)
+        return
+    print("Columns in '%s': %s" % (table, ", ".join(rows[0].keys())))
+    print("Latest rows:")
+    for row in rows:
+        print("  " + json.dumps(row, default=str)[:300])
 
 
 def main():

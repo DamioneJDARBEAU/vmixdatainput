@@ -117,6 +117,32 @@ def footer(canvas, doc):
     canvas.restoreState()
 
 
+SUPABASE_SAMPLE = """
+SUPABASE
+Project: https://abcdefghijkl.supabase.co
+Tables/views visible to this key: results, subscribers
+Columns in 'results': id, game, period, draw_number, numbers, draw_date
+Latest rows:
+  {"id": 812, "game": "Play Way", "period": "Night", "draw_number": 3512, ...}
+"""
+
+FILTER_SAMPLE = """
+"playway_night": {
+  ...
+  "sources": [
+    { "type": "supabase", "filters": { "game": "Play Way", "period": "Night" } },
+    { "type": "web", ... }
+  ]
+}
+"""
+
+WEB_SAMPLE = r"""
+{ "type": "web",
+  "label_regex": "Play\\s*Way\\W{0,20}Night",
+  "draw_regex": "Game\\s*#\\s*(\\d+)",
+  "window": 400 }
+"""
+
 PERIODS = ["Morning", "Midday", "Afternoon", "Night"]
 GAMES = [("Daily 3", "daily3"), ("Play Way", "playway"), ("Daily Pick 3", "dailypick3")]
 
@@ -129,8 +155,8 @@ def story():
           p("vMix Lottery Title Data", TITLE),
           p("Automatic date and next draw ID for every game title", SUB),
           Spacer(1, 0.4 * inch)]
-    sample = Table([[p("<b>DateText</b>", CELL), p("Mon. 9th Sept. 2026", CELL)],
-                    [p("<b>DrawID</b>", CELL), p("10452  (last draw number + 1)", CELL)]],
+    sample = Table([[p("<b>Date</b>", CELL), p("Mon. 9th Sept. 2026", CELL)],
+                    [p("<b>DRAW_ID</b>", CELL), p("10452  (last draw number + 1)", CELL)]],
                    colWidths=[1.4 * inch, 3.2 * inch], hAlign="CENTER")
     sample.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.8, NAVY),
@@ -168,8 +194,8 @@ def story():
           steps([
               "It formats today's date from the PC clock, e.g. <b>Mon. 9th Sept. 2026</b>.",
               "For every game and time period it finds the <b>last</b> draw number - "
-              "from the NLA website, the email blast database, or a manual override - "
-              "and adds 1.",
+              "from the email blast results database in Supabase, the NLA website, or "
+              "a manual override - and adds 1.",
               "It writes one small file per game into the <b>output</b> folder, e.g. "
               "<font face='Courier'>output\\daily3_morning.csv</font>.",
               "Each vMix preset reads its own file through a vMix <b>Data Source</b> "
@@ -180,8 +206,8 @@ def story():
           p("Where the draw number comes from (tried in this order, for each game):", H2),
           table([["Order", "Source", "Notes"],
                  ["1", "Manual override", "overrides.json. Only used on the date written in it."],
-                 ["2", "Website", "about.nla.gd today. The address is one line in config.json."],
-                 ["3", "Email blast database", "SQLite, SQL Server, MySQL, Access or a CSV export."],
+                 ["2", "Supabase", "The email blast results table in your Supabase project."],
+                 ["3", "Website", "about.nla.gd today. The address is one line in config.json."],
                  ["4", "Last good value", "Kept in state.json if everything above fails."]],
                 [0.6, 1.7, 4.2]),
           tip("Because the program runs every 5 minutes, as soon as a draw result is "
@@ -195,8 +221,9 @@ def story():
               "The vMix computer (Windows 10 or 11) with vMix installed. Data Sources "
               "work in all vMix editions that support titles; the optional VB.NET "
               "script needs vMix 4K or Pro.",
-              "Internet access on the vMix PC (for the website) and/or network access "
-              "to the email blast database.",
+              "Internet access on the vMix PC (for Supabase and the website).",
+              "Access to the Supabase project that holds the email blast results "
+              "(to copy its Project URL and API key).",
               "Python 3 (free) - installed in step 3.",
               "This project folder (from GitHub, branch "
               "<font face='Courier'>claude/vmix-title-date-draw-id-omxzaj</font>).",
@@ -225,9 +252,6 @@ def story():
           warn("If the check shows \"not recognized\", run the installer again, choose "
                "<b>Modify</b>, and make sure \"Add Python to environment variables\" "
                "is ticked."),
-          p("Only if the email blast database is SQL Server, MySQL or Microsoft Access, "
-            "also run this in the same command window:"),
-          code("py -m pip install pyodbc"),
           PageBreak()]
 
     # ---------------------------------------------------------------- 4
@@ -246,11 +270,12 @@ def story():
           code("""
 C:\\vMixLotto\\
     vmix_lotto_data.py        the program
-    config.json               settings (website, database, games)
+    config.json               settings (Supabase, website, games)
+    supabase_key.txt          your Supabase key (you create it, step 6a)
     overrides.example.json    example for manual draw numbers
     run_once.bat              update once (for testing)
     run_loop.bat              keep updating every 5 minutes
-    probe_website.bat         check what the website shows
+    check_sources.bat         show what Supabase and the website contain
     install_autostart.bat     start automatically at log on
     remove_autostart.bat      undo the automatic start
     vmix_scripts\\SetDateText.vb
@@ -263,28 +288,28 @@ C:\\vMixLotto\\
           ]
 
     # ---------------------------------------------------------------- 5
-    s += [p("5. First test run", H1),
+    s += [PageBreak(), p("5. First test run", H1),
           steps([
               "Double-click <b>run_once.bat</b> in C:\\vMixLotto.",
               "A black window opens and prints one line per game, for example:",
           ]),
           code("""
 [2026-10-03 09:15:02] Date text: Sat. 3rd Oct. 2026
-[2026-10-03 09:15:03]   daily3_morning         next draw 10452    (web)
-[2026-10-03 09:15:03]   daily3_midday          next draw 10453    (web)
+[2026-10-03 09:15:03]   daily3_morning         next draw 10452    (supabase)
+[2026-10-03 09:15:03]   daily3_midday          next draw 10453    (supabase)
 ...
-[2026-10-03 09:15:04]   lotto                  next draw 2101     (sqlite)
+[2026-10-03 09:15:04]   lotto                  next draw 2101     (web)
+[2026-10-03 09:15:04] vMix: pushed playway_night into 'LottoTitle' (preset ...)
 """),
           steps([
               "A new folder <b>C:\\vMixLotto\\output</b> now holds 13 game files plus "
               "<b>all_games.csv</b>. Open all_games.csv in Excel or Notepad to check "
-              "every value at once.",
-              "Press any key to close the window.",
+              "every value at once. Press any key to close the window.",
           ]),
-          p("The word in brackets shows where each number came from: <b>web</b>, "
-            "<b>sqlite</b>/<b>odbc</b>/<b>csv</b> (database), <b>override</b>, "
-            "<b>cached</b> (last good value) or <b>none</b> (nothing found yet - the "
-            "DrawID will be blank). Before you finish section 6, \"none\" is normal."),
+          p("The word in brackets shows where each number came from: <b>supabase</b>, "
+            "<b>web</b>, <b>override</b>, <b>cached</b> (last good value) or <b>none</b> "
+            "(nothing found yet - DRAW_ID will be blank). Before you finish section 6, "
+            "\"none\" and Supabase/website error lines are normal."),
           PageBreak()]
 
     # ---------------------------------------------------------------- 6
@@ -292,64 +317,79 @@ C:\\vMixLotto\\
           p("All settings are in <b>config.json</b>. Open it with Notepad (right-click > "
             "Open with > Notepad). Keep the quotes and commas exactly as they are; a "
             "missing comma stops the program from starting."),
-          p("6a. The website", H2),
-          p("The website address is near the top:"),
+          p("6a. Supabase - the email blast results (main source)", H2),
+          p("<b>Step 1 - copy the project address and key.</b>"),
+          steps([
+              "Log in at <b>https://supabase.com/dashboard</b> and open the project "
+              "that holds the results.",
+              "Click <b>Project Settings</b> (the cog, bottom left), then <b>API</b> "
+              "(in newer dashboards: <b>Data API</b> for the URL and <b>API Keys</b> for "
+              "the key).",
+              "Copy the <b>Project URL</b> (looks like "
+              "<font face='Courier'>https://abcdefghijkl.supabase.co</font>). In "
+              "config.json put it in <font face='Courier'>\"supabase\" &gt; \"url\"</font>.",
+              "Copy the <b>anon / public</b> key (newer dashboards call it the "
+              "<b>publishable</b> key).",
+              "In C:\\vMixLotto create a new text file called <b>supabase_key.txt</b>, "
+              "paste the key into it (nothing else) and save.",
+          ]),
+          warn("Use the <b>anon / publishable</b> key, not the <b>service_role / secret</b> "
+               "key. The secret key can change or delete everything in the database "
+               "and must not be stored on the vMix PC. Keep supabase_key.txt out of "
+               "emails and GitHub."),
+          tip("In File Explorer turn on <b>View &gt; File name extensions</b> so Notepad "
+              "does not save the file as supabase_key.txt.txt."),
+          p("<b>Step 2 - see what is in the table.</b> Double-click "
+            "<b>check_sources.bat</b>. Under SUPABASE it shows the tables the key can "
+            "see, the column names, and the 5 latest rows, for example:"),
+          code(SUPABASE_SAMPLE),
+          p("<b>Step 3 - match config.json to the table.</b> In the "
+            "<font face='Courier'>\"supabase\"</font> block set:"),
+          table([["Setting", "Set it to", "Example"],
+                 ["table", "the table holding the results", "\"results\""],
+                 ["draw_column", "the column holding the draw number", "\"draw_number\""],
+                 ["order_column", "leave \"\" - or a date/time column if the draw "
+                  "number is stored as text and sorts wrongly", "\"draw_date\""]],
+                [1.3, 3.4, 1.8]),
+          p("Then check each game's <b>filters</b>: the column names and the values "
+            "exactly as they appear in the table (upper/lower case does not matter):"),
+          code(FILTER_SAMPLE),
+          bullets([
+              "If the table stores the game and time in <b>one</b> column, e.g. "
+              "<i>\"Play Way Night\"</i>, use "
+              "<font face='Courier'>{ \"game\": \"Play Way Night\" }</font>.",
+              "If the spelling varies, use <b>*</b> as a wildcard: "
+              "<font face='Courier'>\"Play*Way\"</font> matches \"Play Way\" and \"PlayWay\".",
+              "Lotto only needs the game: <font face='Courier'>{ \"game\": \"Lotto\" }</font>.",
+          ]),
+          warn("If check_sources.bat says the table <b>returned no rows</b> but it has "
+               "data, Supabase Row Level Security is blocking the public key. In the "
+               "Supabase dashboard open <b>SQL Editor</b> and run (change "
+               "<i>results</i> to your table name):<br/>"
+               "<font face='Courier' size='8.5'>create policy \"vMix can read results\" "
+               "on public.results for select to anon using (true);</font><br/>"
+               "This only allows <b>reading</b> that one table, which is fine for "
+               "published draw results."),
+          PageBreak(),
+          p("6b. The website (backup source)", H2),
+          p("The website address is near the top of config.json:"),
           code('"website_url": "https://about.nla.gd/",'),
           p("When the address changes in future, change only this line and save."),
           p("Each game has a <b>label_regex</b> - the game name as it appears on the "
             "website. The program finds that name and reads the first "
-            "<i>Draw ... number</i> that follows it. Check it against the real page:"),
-          steps([
-              "Double-click <b>probe_website.bat</b>.",
-              "It lists every draw number found on the page with the text around it, "
-              "and saves the same list to <b>probe_result.txt</b>.",
-              "Compare with config.json. For example, if the page says "
-              "<font face='Courier'>PLAY WAY - NIGHT ... Draw No: 3512</font>, the "
-              "default setting <font face='Courier'>Play\\\\s*Way\\\\W{0,20}Night</font> "
-              "already matches it (\\\\s* means \"any spaces\", \\\\W{0,20} means "
-              "\"up to 20 symbols or spaces\").",
+            "<i>Draw ... number</i> that follows it. The WEBSITE part of "
+            "<b>check_sources.bat</b> lists every draw number found on the page with "
+            "the text around it (also saved to <b>check_result.txt</b>)."),
+          bullets([
+              "If the page says <font face='Courier'>PLAY WAY - NIGHT ... Draw No: "
+              "3512</font>, the default <font face='Courier'>Play\\\\s*Way\\\\W{0,20}"
+              "Night</font> already matches it.",
               "If the page uses another word for the number, e.g. <i>Game #3512</i>, "
-              "add a draw_regex line to that game's web source (see below).",
+              "add a draw_regex line to that game's web source:",
           ]),
-          code(r'''
-{ "type": "web",
-  "label_regex": "Play\\s*Way\\W{0,20}Night",
-  "draw_regex": "Game\\s*#\\s*(\\d+)",
-  "window": 400 }
-'''),
-          warn("If probe_website.bat says it found nothing, the page is probably "
-               "drawn by JavaScript. Use the database (6b) as the main source, or send "
-               "probe_result.txt to whoever maintains the script so a JSON source can "
-               "be set up."),
-          PageBreak(),
-          p("6b. The email blast database", H2),
-          p("Each game also has a database source as a fallback. Change the file "
-            "path, table and column names to match your email blast database. "
-            "<b>params</b> are the game name and time period exactly as they are "
-            "stored in the database."),
-          p("<b>SQLite database file:</b>", BODY),
-          code('''
-{ "type": "sqlite",
-  "database": "C:/EmailBlast/results.db",
-  "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
-  "params": ["Play Way", "Night"] }
-'''),
-          p("<b>SQL Server / MySQL / Access</b> (needs pyodbc, see step 3):", BODY),
-          code('''
-{ "type": "odbc",
-  "connection_string":
-    "DRIVER={SQL Server};SERVER=DBPC;DATABASE=EmailBlast;Trusted_Connection=yes",
-  "query": "SELECT MAX(DrawNo) FROM Results WHERE Game = ? AND Period = ?",
-  "params": ["Play Way", "Night"] }
-'''),
-          p("<b>Spreadsheet export</b> saved as CSV:", BODY),
-          code('''
-{ "type": "csv", "file": "C:/EmailBlast/export.csv", "column": "Draw",
-  "filter": { "Game": "Play Way", "Period": "Night" } }
-'''),
-          tip("To make the database the <b>main</b> source, move its block above the "
-              "web block inside that game's \"sources\" list. Use forward slashes "
-              "(C:/folder/file) in paths, or double back-slashes (C:\\\\folder\\\\file)."),
+          code(WEB_SAMPLE),
+          tip("To make the website the <b>main</b> source instead of Supabase, move "
+              "its block above the supabase block inside that game's \"sources\" list."),
           p("6c. Manual override (when you need to type a number in)", H2),
           steps([
               "Copy <b>overrides.example.json</b> and rename the copy to "
@@ -369,23 +409,19 @@ C:\\vMixLotto\\
 
     # ---------------------------------------------------------------- 7
     s += [p("7. Prepare the title in vMix", H1),
-          p("Do this once in the title design. If every preset uses the same title "
-            "file, you only do it once."),
+          p("Your title already has the two fields <b>Date.Text</b> and "
+            "<b>DRAW_ID.Text</b>; the program is set up for exactly these names."),
           steps([
-              "Open the title (.gtzip) in <b>GT Title Designer</b>.",
-              "Select the text object for the date. In the properties panel set its "
-              "<b>Name</b> to <b>DateText</b>.",
-              "Select the text object for the draw number and name it <b>DrawID</b>.",
-              "Save the title.",
-              "In vMix, right-click the title input > <b>Input Settings</b> > General, "
-              "and set its name (title) to <b>LottoTitle</b>. Use this same name in "
-              "every preset.",
+              "In vMix open the title input's <b>Title Editor</b> and confirm the field "
+              "list shows <b>Date.Text</b> and <b>DRAW_ID.Text</b>.",
+              "Right-click the title input > <b>Input Settings</b> > General, and set "
+              "its name (title) to <b>LottoTitle</b>. Use this same name in every preset.",
+              "Save the preset.",
           ]),
-          p("vMix will now list the fields as <b>DateText.Text</b> and "
-            "<b>DrawID.Text</b>."),
-          tip("If your title already uses other field names, keep them and change "
-              "\"date_field\" and \"draw_field\" in config.json to match (only needed "
-              "for the Web API option in section 9)."),
+          warn("Field names must match exactly, including capitals and the underscore: "
+               "<b>DRAW_ID.Text</b>, not Draw_ID.Text or DRAW ID.Text. If a title uses "
+               "different names, change \"date_field\" and \"draw_field\" in the "
+               "\"vmix_api\" part of config.json."),
           ]
 
     # ---------------------------------------------------------------- 8
@@ -403,11 +439,11 @@ C:\\vMixLotto\\
               "Click OK.",
               "In the Data Sources Manager, turn on <b>Auto Refresh</b> and set it to "
               "<b>10</b> seconds. Make sure the first row is used as the header "
-              "(column names <b>DateText</b> and <b>DrawID</b> should appear).",
+              "(column names <b>Date</b> and <b>DRAW_ID</b> should appear).",
               "Open the title's <b>Title Editor</b> (click the cog on the title input, "
               "or right-click > Title Editor) and click <b>Data Source</b>.",
-              "For <b>DateText.Text</b> choose this data source and column <b>DateText</b>. "
-              "For <b>DrawID.Text</b> choose column <b>DrawID</b>. Close the window.",
+              "For <b>Date.Text</b> choose this data source and column <b>Date</b>. "
+              "For <b>DRAW_ID.Text</b> choose column <b>DRAW_ID</b>. Close the window.",
               "Check the preview: the date and draw ID should appear in the title.",
               "<b>Save the preset</b> (File/Save). The link is stored inside the .vmix "
               "file, so you never have to do this again for that preset.",
@@ -422,7 +458,7 @@ C:\\vMixLotto\\
     rows.append(["Lotto", "lotto.csv"])
     s += [table(rows, [2.6, 3.9]),
           p("Each file has a header row and one data row, for example:"),
-          code("Game,DateText,DrawID\nPlay Way Night,Sat. 3rd Oct. 2026,3513"),
+          code("Game,Date,DRAW_ID\nPlay Way Night,Sat. 3rd Oct. 2026,3513"),
           PageBreak()]
 
     # ---------------------------------------------------------------- 9
@@ -469,8 +505,8 @@ C:\\vMixLotto\\
     s += [p("11. Daily checklist", H1),
           bullets([
               "The <b>vMix Lotto Data Feeder</b> window is open on the vMix PC.",
-              "Its latest lines show a draw number and <b>(web)</b> or a database "
-              "source for each game - not <b>(none)</b> or <b>(cached)</b> for hours.",
+              "Its latest lines show a draw number and <b>(supabase)</b> or "
+              "<b>(web)</b> for each game - not <b>(none)</b> or <b>(cached)</b> for hours.",
               "The PC clock and date are correct (the date text comes from it).",
               "Before going on air, check the title preview: correct date and a draw "
               "ID one higher than the last published result.",
@@ -508,21 +544,33 @@ C:\\vMixLotto\\
                  ["\"Config file not found\" or a JSON error",
                   "A quote or comma is missing in config.json. Open it at "
                   "jsonlint.com to find the line."],
-                 ["DrawID is blank, source (none)",
-                  "No source returned a number. Run probe_website.bat (6a) and check the "
-                  "database settings (6b). Use an override (6c) meanwhile."],
+                 ["DRAW_ID is blank, source (none)",
+                  "No source returned a number. Run check_sources.bat and compare the "
+                  "table, columns and filters with config.json (6a). Use an override "
+                  "(6c) meanwhile."],
+                 ["\"Supabase url/key not set\"",
+                  "Put the Project URL in config.json and the key in supabase_key.txt (6a)."],
+                 ["\"Supabase HTTP 401\" / Invalid API key",
+                  "The key in supabase_key.txt is wrong or has extra text. Copy it again."],
+                 ["\"Supabase HTTP 404\" / relation does not exist",
+                  "The \"table\" name in config.json is wrong. Use a name shown by "
+                  "check_sources.bat."],
+                 ["\"Supabase HTTP 400\" / column does not exist",
+                  "draw_column, order_column or a filter column name is wrong."],
+                 ["Supabase table returns no rows",
+                  "Row Level Security - run the policy shown in 6a."],
                  ["\"web source failed: urlopen error\"",
                   "The website cannot be reached. Check internet access or the address "
-                  "in website_url. The database fallback will be used."],
-                 ["\"sqlite source failed: unable to open database file\"",
-                  "The database path in config.json is wrong or the folder is not "
-                  "shared with the vMix PC."],
+                  "in website_url. Supabase is still used first."],
                  ["\"... lower than previous ... ignored\"",
                   "A source returned an older number. Normally harmless; check the "
                   "source if it keeps happening."],
                  ["Title does not change in vMix",
                   "Check Auto Refresh is on and the field is bound to the right column "
                   "(section 8). Open the CSV in Notepad to confirm it has the value."],
+                 ["\"vMix: could not set 'Date.Text'...\"",
+                  "The title input is not named LottoTitle or the field name differs "
+                  "(section 7). The CSV files are still updated."],
                  ["\"vMix API not reachable\"",
                   "Only matters for section 9. Enable Settings > Web Controller."],
                  ["\"no game matches loaded preset\"",
