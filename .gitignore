@@ -1,0 +1,5 @@
+output/
+state.json
+overrides.json
+__pycache__/
+*.tmp

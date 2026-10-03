@@ -1,0 +1,329 @@
+{
+  "settings": {
+    "website_url": "https://about.nla.gd/",
+    "output_folder": "output",
+    "state_file": "state.json",
+    "overrides_file": "overrides.json",
+    "vmix_api": {
+      "enabled": true,
+      "url": "http://127.0.0.1:8088/api/",
+      "title_input": "LottoTitle",
+      "date_field": "DateText.Text",
+      "draw_field": "DrawID.Text"
+    }
+  },
+  "date_format": {
+    "pattern": "{day} {date} {month} {year}",
+    "day_names": [
+      "Mon.",
+      "Tue.",
+      "Wed.",
+      "Thu.",
+      "Fri.",
+      "Sat.",
+      "Sun."
+    ],
+    "month_names": [
+      "Jan.",
+      "Feb.",
+      "Mar.",
+      "Apr.",
+      "May",
+      "June",
+      "July",
+      "Aug.",
+      "Sept.",
+      "Oct.",
+      "Nov.",
+      "Dec."
+    ]
+  },
+  "games": {
+    "daily3_morning": {
+      "name": "Daily 3 Morning",
+      "preset_match": "Daily 3 Morning",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Daily\\s*3\\W{0,20}Morning",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Daily 3",
+            "Morning"
+          ]
+        }
+      ]
+    },
+    "daily3_midday": {
+      "name": "Daily 3 Midday",
+      "preset_match": "Daily 3 Midday",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Daily\\s*3\\W{0,20}Midday",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Daily 3",
+            "Midday"
+          ]
+        }
+      ]
+    },
+    "daily3_afternoon": {
+      "name": "Daily 3 Afternoon",
+      "preset_match": "Daily 3 Afternoon",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Daily\\s*3\\W{0,20}Afternoon",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Daily 3",
+            "Afternoon"
+          ]
+        }
+      ]
+    },
+    "daily3_night": {
+      "name": "Daily 3 Night",
+      "preset_match": "Daily 3 Night",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Daily\\s*3\\W{0,20}Night",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Daily 3",
+            "Night"
+          ]
+        }
+      ]
+    },
+    "playwhe_morning": {
+      "name": "Play Whe Morning",
+      "preset_match": "Play Whe Morning",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Play\\s*Whe\\W{0,20}Morning",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Play Whe",
+            "Morning"
+          ]
+        }
+      ]
+    },
+    "playwhe_midday": {
+      "name": "Play Whe Midday",
+      "preset_match": "Play Whe Midday",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Play\\s*Whe\\W{0,20}Midday",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Play Whe",
+            "Midday"
+          ]
+        }
+      ]
+    },
+    "playwhe_afternoon": {
+      "name": "Play Whe Afternoon",
+      "preset_match": "Play Whe Afternoon",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Play\\s*Whe\\W{0,20}Afternoon",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Play Whe",
+            "Afternoon"
+          ]
+        }
+      ]
+    },
+    "playwhe_night": {
+      "name": "Play Whe Night",
+      "preset_match": "Play Whe Night",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Play\\s*Whe\\W{0,20}Night",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Play Whe",
+            "Night"
+          ]
+        }
+      ]
+    },
+    "dailypick3_morning": {
+      "name": "Daily Pick 3 Morning",
+      "preset_match": "Daily Pick 3 Morning",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Morning",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Daily Pick 3",
+            "Morning"
+          ]
+        }
+      ]
+    },
+    "dailypick3_midday": {
+      "name": "Daily Pick 3 Midday",
+      "preset_match": "Daily Pick 3 Midday",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Midday",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Daily Pick 3",
+            "Midday"
+          ]
+        }
+      ]
+    },
+    "dailypick3_afternoon": {
+      "name": "Daily Pick 3 Afternoon",
+      "preset_match": "Daily Pick 3 Afternoon",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Afternoon",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Daily Pick 3",
+            "Afternoon"
+          ]
+        }
+      ]
+    },
+    "dailypick3_night": {
+      "name": "Daily Pick 3 Night",
+      "preset_match": "Daily Pick 3 Night",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "Daily\\s*Pick\\s*3\\W{0,20}Night",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Daily Pick 3",
+            "Night"
+          ]
+        }
+      ]
+    },
+    "lotto": {
+      "name": "Lotto",
+      "preset_match": "Lotto",
+      "title_input": "LottoTitle",
+      "increment": 1,
+      "sources": [
+        {
+          "type": "web",
+          "label_regex": "\\bLotto\\b(?!\\s*(?:Plus|Super))",
+          "window": 400
+        },
+        {
+          "type": "sqlite",
+          "database": "C:/EmailBlast/results.db",
+          "query": "SELECT MAX(draw_number) FROM results WHERE game = ? AND period = ?",
+          "params": [
+            "Lotto",
+            ""
+          ]
+        }
+      ]
+    }
+  }
+}
