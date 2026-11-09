@@ -113,6 +113,21 @@ def patch(rest_frame, layer):
     return out * (1 - a) + layer[..., :3] * a
 
 
+def refine_shift(frame, rest, dy, search=10):
+    """Exact vertical position from the unchanged "LIMITED PERIOD:" text."""
+    x0, x1, y0, y1 = 70, 270, 604, 632
+    ref = rest[y0:y1, x0:x1]
+    best, best_d = None, dy
+    for d in range(dy - search, dy + search + 1):
+        a, b = y0 + d, y1 + d
+        if a < 0 or b > frame.shape[0]:
+            continue
+        err = np.abs(frame[a:b, x0:x1] - ref).mean()
+        if best is None or err < best:
+            best, best_d = err, d
+    return best_d
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -159,13 +174,19 @@ def main():
             "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv",
             "-shortest", a.out]
     p = subprocess.Popen(enc, stdin=subprocess.PIPE)
+    patched = np.clip(rest + delta, 0, 1)
     for i, rgb in enumerate(mao.frames(a.src, w, h)):
         dy = shifts[i]
         if dy is not None:
+            if dy != 0:
+                dy = refine_shift(rgb, rest, dy)
             ya, yb = y0 + dy, y1 + dy
             ca, cb = max(0, ya), min(h, yb)
             if cb > ca:
-                rgb[ca:cb, x0:x1] = np.clip(rgb[ca:cb, x0:x1] + d[ca - ya:cb - ya], 0, 1)
+                if dy == 0:   # at rest: add the change, keeping sparkles passing over
+                    rgb[ca:cb, x0:x1] = np.clip(rgb[ca:cb, x0:x1] + d[ca - ya:cb - ya], 0, 1)
+                else:         # moving: replace the strip, so no old text shows through
+                    rgb[ca:cb, x0:x1] = patched[y0 + ca - ya:y0 + cb - ya, x0:x1]
         p.stdin.write((rgb * 65535 + 0.5).astype("<u2").tobytes())
     p.stdin.close()
     if p.wait():
