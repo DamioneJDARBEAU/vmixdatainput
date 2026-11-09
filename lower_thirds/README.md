@@ -20,6 +20,24 @@ Needs `ffmpeg`, `numpy` and `scipy` (`pip install numpy scipy`). Options:
 * `--qc FILE.mp4`: also write a check video. The top half shows the overlay over a
   checkerboard, the bottom half over a bright test picture.
 
+## New dates on the 10X lower third
+
+`retext_10x_dates.py` replaces the yellow date on the 10X banner ("LIMITED PERIOD:
+9th - 14th NOVEMBER 2026"). It paints the old date out with the panel's navy and
+draws the new one in the same place, size, colour and shadow, with small raised
+"st/nd/rd/th". The change follows the banner's slide-in. Then run the alpha step
+as usual:
+
+```
+python retext_10x_dates.py 10X_Lower_3rd.mp4 10X_23-28_Nov.mkv \
+       --font roboto-condensed-latin-800-normal.woff --dates "23rd" "28th" "NOVEMBER 2026"
+python make_alpha_overlay.py 10X_23-28_Nov.mkv 10X_23-28_Nov_alpha.mov --qc 10X_23-28_Nov_QC.mp4
+```
+
+The font is Roboto Condensed ExtraBold, the closest free match to the original
+lettering (`npm pack @fontsource/roboto-condensed`, or Google Fonts). If the text
+would run past the panel's rounded end, it's narrowed slightly to fit.
+
 ## Using the files in vMix
 
 1. **Add Input → Video** and pick the `_alpha.mov` file. vMix reads the transparency
