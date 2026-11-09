@@ -613,6 +613,10 @@ recording: Pick_3_13273_Afternoon_2026-11-09.mp4
               "day move down one number, and the cancelled slot's title stays blank.",
               "<b>3 Remove</b> or <b>4 Clear all</b> undo mistakes. Changes only last "
               "for today; tomorrow starts as a normal day by itself.",
+              "<b>The next day continues from the last draw ID used that night.</b> "
+              "Example: Morning moved to Afternoon (13273), Midday and Afternoon "
+              "cancelled, Night 13274 - the next Morning is 13275. If the database "
+              "shows a higher number for that day, the higher number is used.",
               "If the database cannot be read while changes are active, the draw ID is "
               "left <b>blank</b> rather than showing an old number. Use an override (6c).",
           ]),

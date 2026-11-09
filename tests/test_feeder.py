@@ -359,6 +359,71 @@ class TodayChangesTests(unittest.TestCase):
                                         {key: {"next_draw": 13275}}, {}, self.TODAY, ch),
                          (None, "none"))
 
+    INCIDENT = [{"games": "daily", "type": "moved", "draw": "mid_morning",
+                 "slot": "mid_afternoon"},
+                {"games": "daily", "type": "cancelled", "draw": "midday"},
+                {"games": "daily", "type": "cancelled", "draw": "mid_afternoon"}]
+
+    def day_one_state(self):
+        """Run 'today' (9 Nov) with the incident and keep what it remembers."""
+        state, results = {}, {}
+        for key, game in self.cfg["games"].items():
+            if key != "lotto":
+                draw, _ = v.next_draw_id(key, game, self.settings, state, {},
+                                         self.TODAY, self.INCIDENT)
+                results[key] = {"draw": draw}
+        v.remember_closing(state, self.cfg["games"], results, self.INCIDENT, self.TODAY)
+        return state
+
+    def next_day(self, state, group="pick3"):
+        out = {}
+        for per in ("morning", "midday", "afternoon", "night"):
+            key = "%s_%s" % (group, per)
+            out[per] = v.next_draw_id(key, self.cfg["games"][key], self.settings,
+                                      state, {}, dt.date(2026, 11, 10), [])[0]
+        return out
+
+    def test_next_day_continues_from_last_number_used_at_night(self):
+        state = self.day_one_state()
+        self.assertEqual(state["_closing"]["pick3"], {"date": "2026-11-09", "last": 13274})
+        # only the moved draw was entered, under its own period
+        self.rows.append({"draw_date": "2026-11-09", "period": "mid_morning",
+                          "pick3_draw_no": 13273, "play_way_draw_no": 10845,
+                          "cash4_draw_no": 8042})
+        self.assertEqual(self.next_day(state), {"morning": 13275, "midday": 13276,
+                                                "afternoon": 13277, "night": 13278})
+        self.assertEqual(self.next_day(state, "cash4")["morning"], 8044)
+
+    def test_next_day_when_night_already_entered(self):
+        state = self.day_one_state()
+        self.rows.append({"draw_date": "2026-11-09", "period": "evening",
+                          "pick3_draw_no": 13274, "play_way_draw_no": 10846,
+                          "cash4_draw_no": 8043})
+        self.assertEqual(self.next_day(state)["morning"], 13275)
+
+    def test_database_higher_than_remembered_wins(self):
+        state = self.day_one_state()
+        self.rows.append({"draw_date": "2026-11-09", "period": "evening",
+                          "pick3_draw_no": 13276, "play_way_draw_no": 10848,
+                          "cash4_draw_no": 8045})   # more draws were held after all
+        self.assertEqual(self.next_day(state)["morning"], 13277)
+
+    def test_remembered_number_ignored_once_newer_days_exist(self):
+        state = self.day_one_state()
+        for i, per in enumerate(PERIODS):
+            self.rows.append({"draw_date": "2026-11-10", "period": per,
+                              "pick3_draw_no": 13275 + i, "play_way_draw_no": 1,
+                              "cash4_draw_no": 1})
+        key = "pick3_morning"
+        got = v.next_draw_id(key, self.cfg["games"][key], self.settings, state, {},
+                             dt.date(2026, 11, 11), [])[0]
+        self.assertEqual(got, 13279)
+
+    def test_clearing_changes_forgets_the_closing_number(self):
+        state = self.day_one_state()
+        v.remember_closing(state, self.cfg["games"], {}, [], self.TODAY)
+        self.assertNotIn("pick3", state["_closing"])
+
     def test_file_expires_at_midnight(self):
         with tempfile.TemporaryDirectory() as d:
             st = {"today_changes_file": os.path.join(d, "t.json")}

@@ -324,23 +324,40 @@ def source_supabase_slot(src, game, settings, today=None):
         if d == today_s and idx == t_idx:
             return {"next": draw}  # today's draw number is already known
 
+    closing = src.get("closing")
     if src.get("incident"):
         return {"next": incident_number(found, periods, t_idx, today_s,
-                                        src.get("cancelled") or [])}
+                                        src.get("cancelled") or [], closing)}
 
     (l_date, l_idx), l_draw = max(found)
-    per_day = max(1, len(periods))
     if l_date == today_s:
         steps = t_idx - l_idx
         if steps <= 0:  # this period already passed today without a number
             return None
-    else:
-        # remaining slots on the latest day + today's slots up to the target
-        steps = (per_day - 1 - l_idx) + t_idx + 1
-    return {"next": l_draw + steps}
+        return {"next": l_draw + steps}
+    # last number used before today + today's slots up to the target
+    return {"next": last_before_today(found, periods, today_s, closing) + t_idx + 1}
 
 
-def incident_number(found, periods, t_idx, today_s, cancelled):
+def last_before_today(found, periods, today_s, closing=None):
+    """Last draw number used before today.
+
+    Normally the latest row, with any draws still missing from that day
+    counted as held. After a day with moved or cancelled draws, the number
+    used at night that day (remembered in state.json as "closing") is used
+    instead, so the next day continues from it.
+    """
+    before = [f for f in found if f[0][0] < today_s]
+    if not before:
+        return None
+    (l_date, l_idx), l_draw = max(before)
+    if closing and today_s > closing["date"] >= l_date:
+        same_day = [draw for (d, _), draw in before if d == closing["date"]]
+        return max([int(closing["last"])] + same_day)
+    return l_draw + (max(1, len(periods)) - 1 - l_idx)
+
+
+def incident_number(found, periods, t_idx, today_s, cancelled, closing=None):
     """Draw number of today's draw t_idx on a day with changes.
 
     Counts from the last draw before today (its day's remaining draws are
@@ -349,12 +366,8 @@ def incident_number(found, periods, t_idx, today_s, cancelled):
     not used for counting, because a moved draw may have been entered under
     the slot it was held in.
     """
-    per_day = max(1, len(periods))
-    before = [f for f in found if f[0][0] < today_s]
-    if before:
-        (l_date, l_idx), l_draw = max(before)
-        base = l_draw + (per_day - 1 - l_idx)
-    else:  # nothing before today: work back from today's earliest row
+    base = last_before_today(found, periods, today_s, closing)
+    if base is None:  # nothing before today: work back from today's earliest row
         (d, idx), draw = min(found)
         base = draw - 1 - sum(1 for i in range(idx) if periods[i] not in cancelled)
     return base + sum(1 for i in range(t_idx + 1) if periods[i] not in cancelled)
@@ -493,7 +506,10 @@ def next_draw_id(key, game, settings, state, overrides, today, changes=None):
 
     increment = int(game.get("increment", 1))
     mine = changes_for(game, changes or [])
-    sources = game.get("sources", [])
+    group, _ = game_slot(game)
+    closing = (state.get("_closing") or {}).get(group) if group else None
+    sources = [dict(s, closing=closing) if s.get("type") == "supabase_slot" else s
+               for s in game.get("sources", [])]
     if mine:
         _, slot = game_slot(game)
         cancelled = [c["draw"] for c in mine if c["type"] == "cancelled"]
@@ -506,6 +522,7 @@ def next_draw_id(key, game, settings, state, overrides, today, changes=None):
         # only the database can count around moved/cancelled draws
         sources = [dict(s, period=airs, cancelled=cancelled, incident=True)
                    for s in sources if s.get("type") == "supabase_slot"]
+        # no "lower than before" check today: the numbers really do go back
     last = None
     for src in sources:
         kind = src.get("type")
@@ -718,6 +735,24 @@ class RecordingFiler:
             log("Recording saved: %s" % dest)
 
 
+def remember_closing(state, games, results, changes, today):
+    """On a day with changes, store each game's last draw number of the day
+    (the highest number used, normally the Night draw) so tomorrow continues
+    from it. Cleared again if today's changes are removed."""
+    closing = state.setdefault("_closing", {})
+    day = today.isoformat()
+    groups = {game_slot(g)[0] for g in games.values()} - {None}
+    for group in groups:
+        keys = [k for k, g in games.items() if game_slot(g)[0] == group]
+        if any(changes_for(games[k], changes) for k in keys):
+            used = [results[k]["draw"] for k in keys
+                    if results.get(k, {}).get("draw") is not None]
+            if used:
+                closing[group] = {"date": day, "last": max(used)}
+        elif closing.get(group, {}).get("date") == day:
+            del closing[group]
+
+
 def run_once(cfg):
     _page_cache.clear()
     settings = cfg.get("settings", {})
@@ -768,6 +803,7 @@ def run_once(cfg):
                    + [res["extras"].get(c, "") for c in extra_cols])
     write_atomic(os.path.join(out_dir, "all_games.csv"), buf.getvalue(), bom=True)
 
+    remember_closing(state, games, results, changes, today)
     write_atomic(state_file, json.dumps(state, indent=2))
     try:
         vmix_push(settings, results)

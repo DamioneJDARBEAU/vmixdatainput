@@ -181,6 +181,13 @@ counting, because a moved draw may have been entered under the slot it was held
 in. A row for exactly that draw still wins. If Supabase can't be read while
 changes are active, the draw ID is left blank rather than showing an old number.
 
+**The next day continues from the last draw ID used that night.** On a day with
+changes, each game's highest draw number used (normally Night) is saved in
+`state.json` (`_closing`). The next draw day counts on from it, or from the
+database's highest number for that day if that's higher. For example: Morning moved
+to Afternoon (13273), Midday and Afternoon cancelled, Night 13274, so the next
+Morning is 13275. Once later days are in the database, it's no longer used.
+
 ## 4. vMix setup (once per preset)
 
 Do this in each game's `.vmix` file (Pick 3 Morning, Pick 3 Midday, …, Lotto).
