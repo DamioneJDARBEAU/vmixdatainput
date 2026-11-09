@@ -288,6 +288,116 @@ class SupabaseSlotTests(unittest.TestCase):
         self.assertIsNone(self.next_for("midday", (2026, 10, 3)))
 
 
+class TodayChangesTests(unittest.TestCase):
+    """Today (9 Nov): the Morning draw was moved to Midday, then to Afternoon."""
+    TODAY = dt.date(2026, 11, 9)
+
+    def setUp(self):
+        self.rows = [{"draw_date": "2026-11-08", "period": p, "pick3_draw_no": 13269 + i,
+                      "play_way_draw_no": 10841 + i, "cash4_draw_no": 8038 + i}
+                     for i, p in enumerate(PERIODS)]          # yesterday: ... 13272
+        self.srv = FakeServer(fake_postgrest(self.rows))
+        self.cfg = v.load_json(os.path.join(os.path.dirname(__file__), "..", "config.json"))
+        self.settings = {"supabase": {"url": self.srv.url, "key": "K"}}
+
+    def tearDown(self):
+        self.srv.close()
+
+    def ids(self, changes, group="pick3"):
+        out = {}
+        for per in ("morning", "midday", "afternoon", "night"):
+            key = "%s_%s" % (group, per)
+            out[per] = v.next_draw_id(key, self.cfg["games"][key], self.settings,
+                                      {}, {}, self.TODAY, changes)[0]
+        return out
+
+    def test_normal_day(self):
+        self.assertEqual(self.ids([]), {"morning": 13273, "midday": 13274,
+                                        "afternoon": 13275, "night": 13276})
+
+    def test_morning_held_in_afternoon_slot(self):
+        ch = [{"games": "daily", "type": "moved", "draw": "mid_morning",
+               "slot": "mid_afternoon"}]
+        got = self.ids(ch)
+        self.assertEqual(got["afternoon"], 13273)       # the Afternoon preset airs Morning
+        self.assertEqual(got["night"], 13276)
+        self.assertEqual(self.ids(ch, "playway")["afternoon"], 10845)
+        self.assertEqual(self.ids(ch, "cash4")["afternoon"], 8042)
+
+    def test_cancelled_draws_shift_later_numbers(self):
+        ch = [{"games": "daily", "type": "moved", "draw": "mid_morning",
+               "slot": "mid_afternoon"},
+              {"games": "daily", "type": "cancelled", "draw": "midday"},
+              {"games": "daily", "type": "cancelled", "draw": "mid_afternoon"}]
+        got = self.ids(ch)
+        self.assertEqual(got["afternoon"], 13273)
+        self.assertIsNone(got["midday"])                # nothing airs there
+        self.assertEqual(got["night"], 13274)
+
+    def test_moved_draw_entered_under_the_slot_it_was_held_in(self):
+        ch = [{"games": "daily", "type": "moved", "draw": "mid_morning",
+               "slot": "mid_afternoon"}]
+        self.rows.append({"draw_date": "2026-11-09", "period": "mid_afternoon",
+                          "pick3_draw_no": 13273, "play_way_draw_no": 10845,
+                          "cash4_draw_no": 8042})
+        got = self.ids(ch)
+        self.assertEqual(got["afternoon"], 13273)
+        self.assertEqual(got["night"], 13276)
+
+    def test_one_game_only(self):
+        ch = [{"games": "cash4", "type": "moved", "draw": "mid_morning",
+               "slot": "midday"}]
+        self.assertEqual(self.ids(ch, "cash4")["midday"], 8042)
+        self.assertEqual(self.ids(ch, "pick3")["midday"], 13274)   # untouched
+
+    def test_database_down_gives_blank_not_stale(self):
+        ch = [{"games": "daily", "type": "moved", "draw": "mid_morning",
+               "slot": "mid_afternoon"}]
+        settings = {"supabase": {"url": "http://127.0.0.1:9", "key": "K"}}
+        key = "pick3_afternoon"
+        self.assertEqual(v.next_draw_id(key, self.cfg["games"][key], settings,
+                                        {key: {"next_draw": 13275}}, {}, self.TODAY, ch),
+                         (None, "none"))
+
+    def test_file_expires_at_midnight(self):
+        with tempfile.TemporaryDirectory() as d:
+            st = {"today_changes_file": os.path.join(d, "t.json")}
+            v.save_today_changes(st, dt.date(2026, 11, 8),
+                                 [{"games": "daily", "type": "cancelled", "draw": "midday"}])
+            self.assertEqual(v.load_today_changes(st, self.TODAY), [])
+            self.assertEqual(len(v.load_today_changes(st, dt.date(2026, 11, 8))), 1)
+
+    def test_prompt_records_and_replaces_moves(self):
+        with tempfile.TemporaryDirectory() as d:
+            cfg = {"settings": {"today_changes_file": os.path.join(d, "t.json"),
+                                "output_folder": os.path.join(d, "out"),
+                                "state_file": os.path.join(d, "s.json"),
+                                "overrides_file": os.path.join(d, "o.json"),
+                                "supabase": {"url": self.srv.url, "key": "K"}},
+                   "games": {k: g for k, g in self.cfg["games"].items() if k != "lotto"}}
+            for g in cfg["games"].values():
+                g["sources"] = g["sources"][:1]
+            # move Morning -> Midday, then Morning -> Afternoon, then done
+            answers = iter(["1", "", "1", "2", "1", "1", "1", "3", "5"])
+            shown = []
+            v.fix_today(cfg, ask=lambda q: next(answers), out=shown.append)
+            saved = v.load_json(os.path.join(d, "t.json"))
+            self.assertEqual(saved["changes"], [{"games": "daily", "type": "moved",
+                                                 "draw": "mid_morning",
+                                                 "slot": "mid_afternoon"}])
+            text = "\n".join(shown)
+            self.assertIn("Morning draw held in the Afternoon slot (all daily games)", text)
+            self.assertIn("Draw IDs now:", text)
+
+    def test_prompt_survives_closed_input(self):
+        def ask(q):
+            raise EOFError
+        with tempfile.TemporaryDirectory() as d:
+            cfg = {"settings": {"today_changes_file": os.path.join(d, "t.json")},
+                   "games": {}}
+            v.fix_today(cfg, ask=ask, out=lambda *a: None)
+
+
 class JackpotTests(unittest.TestCase):
     def setUp(self):
         self.rows = [{"draw_date": "2026-09-30", "draw_no": 2100, "jackpot_amount": 1000000},

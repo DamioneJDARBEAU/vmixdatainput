@@ -149,10 +149,37 @@ Other per-game values can be added the same way in `extras`.
 | `run_loop.bat`          | Updates every 5 minutes and restarts itself if it stops. Leave it open (minimised). |
 | `install_autostart.bat` | Right-click → *Run as administrator*. Starts `run_loop.bat` at every log-on. |
 | `remove_autostart.bat`  | Right-click → *Run as administrator*. Removes the auto-start.       |
+| `fix_today.bat`         | Records draws moved to another time slot or cancelled today (see below). |
 | `check_sources.bat`     | Shows the Supabase tables/columns/latest rows and the draw numbers found on the website; saves them to `check_result.txt`. |
 
 Run it every few minutes, not just once a day. After each draw's result is
 published, that game's next draw ID moves up on its own.
+
+`run_loop.bat` and `run_once.bat` start by asking *Any draw changes today?*.
+With no answer they carry on after 15 seconds, so autostart stays unattended.
+
+### When a draw is moved or cancelled
+
+Run `fix_today.bat` (or answer **Y** at start-up). It asks:
+
+1. **A draw is being held in a different time slot**: which games (Enter = all
+   daily games), which draw moved, and which slot it's held in now. If it moves
+   again, repeat; the new answer replaces the old one.
+2. **A draw is cancelled (its number is not used)**: later draws that day move
+   down one number, and the cancelled slot's title is blank.
+3. / 4. Remove one change or clear them all.
+
+The changes go into `today_changes.json` (git-ignored) and are ignored from
+midnight on. The running feeder reloads within seconds. Load the preset for the
+slot you're airing in: its title shows the moved draw's number, and the
+recording is named after that slot (`Pick_3_13273_Afternoon_2026-11-09.mp4`).
+
+How numbers are worked out on such a day: start from the last draw before today
+(any draws still missing from that day count as held), then add one per draw
+today up to the one airing, skipping cancelled draws. Today's rows are ignored for
+counting, because a moved draw may have been entered under the slot it was held
+in. A row for exactly that draw still wins. If Supabase can't be read while
+changes are active, the draw ID is left blank rather than showing an old number.
 
 ## 4. vMix setup (once per preset)
 

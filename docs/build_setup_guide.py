@@ -175,9 +175,10 @@ def story():
                  "9. Optional: direct push through the vMix Web API",
                  "10. Start automatically with Windows",
                  "11. Name and file the recordings",
-                 "12. Daily checklist",
-                 "13. Changing things later",
-                 "14. Troubleshooting",
+                 "12. When a draw is moved or cancelled",
+                 "13. Daily checklist",
+                 "14. Changing things later",
+                 "15. Troubleshooting",
                  "Appendix: game keys"]:
         s.append(p(line))
     s.append(PageBreak())
@@ -277,6 +278,7 @@ C:\\vMixLotto\\
     run_once.bat              update once (for testing)
     run_loop.bat              keep updating every 5 minutes
     check_sources.bat         show what Supabase and the website contain
+    fix_today.bat             record draws moved or cancelled today
     supabase\\vmix_read_access.sql   only if the key cannot read results
     install_autostart.bat     start automatically at log on
     remove_autostart.bat      undo the automatic start
@@ -579,7 +581,45 @@ C:\Users\user\Documents\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
           PageBreak()]
 
     # ---------------------------------------------------------------- 12
-    s += [p("12. Daily checklist", H1),
+    s += [p("12. When a draw is moved or cancelled", H1),
+          p("If a draw cannot be held on time, tell the program, so that the titles "
+            "and recording names stay right. Example from 9 Nov 2026: the Morning "
+            "draw was moved to Midday, and then to the Afternoon slot (4:45)."),
+          steps([
+              "Double-click <b>fix_today.bat</b> (or answer <b>Y</b> when run_loop.bat "
+              "or run_once.bat asks <i>Any draw changes today?</i> at start-up; with "
+              "no answer they carry on after 15 seconds).",
+              "Choose <b>1 A draw is being held in a different time slot</b>.",
+              "Choose the games: press Enter for <b>all daily games</b> (Pick 3, Play "
+              "Way, Cash 4), or pick one game.",
+              "Choose the draw that moved (<b>Morning</b>), then the slot it is held in "
+              "now (<b>Midday</b>). If it moves again, repeat with the new slot "
+              "(<b>Afternoon</b>); the new answer replaces the old one.",
+              "Check the table it shows, then choose <b>Done</b>. The running feeder "
+              "picks the change up within a few seconds.",
+              "At air time, load the preset for the slot you are airing in (here the "
+              "<b>Afternoon</b> preset). Its title shows the moved draw's number and the "
+              "recording is saved under that slot.",
+          ]),
+          code("""
+Draw IDs now:        Morning   Midday    Afternoon Night
+  Pick 3             13273     13274     13273     13276
+  Play Way           10845     10846     10845     10848
+  Cash 4             8042      8043      8042      8045
+recording: Pick_3_13273_Afternoon_2026-11-09.mp4
+"""),
+          bullets([
+              "<b>2 A draw is cancelled (its number is not used)</b>: later draws that "
+              "day move down one number, and the cancelled slot's title stays blank.",
+              "<b>3 Remove</b> or <b>4 Clear all</b> undo mistakes. Changes only last "
+              "for today; tomorrow starts as a normal day by itself.",
+              "If the database cannot be read while changes are active, the draw ID is "
+              "left <b>blank</b> rather than showing an old number. Use an override (6c).",
+          ]),
+          PageBreak()]
+
+    # ---------------------------------------------------------------- 13
+    s += [p("13. Daily checklist", H1),
           bullets([
               "The <b>vMix Lotto Data Feeder</b> window is open on the vMix PC.",
               "Its latest lines show a draw number and <b>(supabase)</b> or "
@@ -587,13 +627,14 @@ C:\Users\user\Documents\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
               "The PC clock and date are correct (the date text comes from it).",
               "Before going on air, check the title preview: correct date and a draw "
               "ID one higher than the last published result.",
-              "If a number is wrong, use an override (6c) and wait up to 5 minutes, or "
-              "run run_once.bat to update immediately.",
+              "If a draw is moved or cancelled, run <b>fix_today.bat</b> (section 12).",
+              "If a number is still wrong, use an override (6c) and wait up to 5 "
+              "minutes, or run run_once.bat to update immediately.",
           ]),
           ]
 
-    # ---------------------------------------------------------------- 13
-    s += [p("13. Changing things later", H1),
+    # ---------------------------------------------------------------- 14
+    s += [p("14. Changing things later", H1),
           table([["To change...", "Edit", "Example"],
                  ["Website address", "config.json: website_url",
                   "\"https://results.nla.gd/\""],
@@ -616,8 +657,8 @@ C:\Users\user\Documents\vmixstorage\2026-10-03\Lotto\Lotto_2101_2026-10-03.mp4
             "update, so there is no need to restart it after saving."),
           ]
 
-    # ---------------------------------------------------------------- 14
-    s += [PageBreak(), p("14. Troubleshooting", H1),
+    # ---------------------------------------------------------------- 15
+    s += [PageBreak(), p("15. Troubleshooting", H1),
           table([["Problem", "Fix"],
                  ["\"Python was not found\"", "Repeat step 3 and tick \"Add python.exe to PATH\"."],
                  ["Window opens and closes at once",

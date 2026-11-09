@@ -31,7 +31,8 @@
       ],
       "poll_seconds": 5,
       "settle_seconds": 5
-    }
+    },
+    "today_changes_file": "today_changes.json"
   },
   "date_format": {
     "pattern": "{day} {date} {month} {year}",
@@ -64,6 +65,7 @@
       "name": "Pick 3 Morning",
       "game_label": "Pick 3",
       "period_label": "Morning",
+      "incident_group": "pick3",
       "preset_match": [
         "Daily Pick 3 Morning",
         "Pick 3 Morning",
@@ -97,6 +99,7 @@
       "name": "Pick 3 Midday",
       "game_label": "Pick 3",
       "period_label": "Midday",
+      "incident_group": "pick3",
       "preset_match": [
         "Daily Pick 3 Midday",
         "Pick 3 Midday",
@@ -130,6 +133,7 @@
       "name": "Pick 3 Afternoon",
       "game_label": "Pick 3",
       "period_label": "Afternoon",
+      "incident_group": "pick3",
       "preset_match": [
         "Daily Pick 3 Afternoon",
         "Pick 3 Afternoon",
@@ -163,6 +167,7 @@
       "name": "Pick 3 Night",
       "game_label": "Pick 3",
       "period_label": "Night",
+      "incident_group": "pick3",
       "preset_match": [
         "Daily Pick 3 Night",
         "Pick 3 Night",
@@ -196,6 +201,7 @@
       "name": "Play Way Morning",
       "game_label": "Play Way",
       "period_label": "Morning",
+      "incident_group": "playway",
       "preset_match": [
         "Play Way Morning"
       ],
@@ -227,6 +233,7 @@
       "name": "Play Way Midday",
       "game_label": "Play Way",
       "period_label": "Midday",
+      "incident_group": "playway",
       "preset_match": [
         "Play Way Midday"
       ],
@@ -258,6 +265,7 @@
       "name": "Play Way Afternoon",
       "game_label": "Play Way",
       "period_label": "Afternoon",
+      "incident_group": "playway",
       "preset_match": [
         "Play Way Afternoon"
       ],
@@ -289,6 +297,7 @@
       "name": "Play Way Night",
       "game_label": "Play Way",
       "period_label": "Night",
+      "incident_group": "playway",
       "preset_match": [
         "Play Way Night"
       ],
@@ -320,6 +329,7 @@
       "name": "Cash 4 Morning",
       "game_label": "Cash 4",
       "period_label": "Morning",
+      "incident_group": "cash4",
       "preset_match": [
         "Daily Cash 4 Morning",
         "Cash 4 Morning"
@@ -352,6 +362,7 @@
       "name": "Cash 4 Midday",
       "game_label": "Cash 4",
       "period_label": "Midday",
+      "incident_group": "cash4",
       "preset_match": [
         "Daily Cash 4 Midday",
         "Cash 4 Midday"
@@ -384,6 +395,7 @@
       "name": "Cash 4 Afternoon",
       "game_label": "Cash 4",
       "period_label": "Afternoon",
+      "incident_group": "cash4",
       "preset_match": [
         "Daily Cash 4 Afternoon",
         "Cash 4 Afternoon"
@@ -416,6 +428,7 @@
       "name": "Cash 4 Night",
       "game_label": "Cash 4",
       "period_label": "Night",
+      "incident_group": "cash4",
       "preset_match": [
         "Daily Cash 4 Night",
         "Cash 4 Night"

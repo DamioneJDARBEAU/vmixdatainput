@@ -27,6 +27,8 @@ Only the Python 3.8+ standard library is required.
 Usage:
   python vmix_lotto_data.py                  run once
   python vmix_lotto_data.py --loop 300       run every 300 seconds
+  python vmix_lotto_data.py --fix-today      record draws moved to another
+                                             time slot or cancelled today
   python vmix_lotto_data.py --probe          show what the website and the
                                              Supabase table contain, to help
                                              set up config.json
@@ -84,7 +86,12 @@ def format_date(day, date_cfg=None):
 # Helpers
 # --------------------------------------------------------------------------
 
+_quiet = False
+
+
 def log(msg):
+    if _quiet:
+        return
     stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print("[%s] %s" % (stamp, msg), flush=True)
 
@@ -317,6 +324,10 @@ def source_supabase_slot(src, game, settings, today=None):
         if d == today_s and idx == t_idx:
             return {"next": draw}  # today's draw number is already known
 
+    if src.get("incident"):
+        return {"next": incident_number(found, periods, t_idx, today_s,
+                                        src.get("cancelled") or [])}
+
     (l_date, l_idx), l_draw = max(found)
     per_day = max(1, len(periods))
     if l_date == today_s:
@@ -327,6 +338,26 @@ def source_supabase_slot(src, game, settings, today=None):
         # remaining slots on the latest day + today's slots up to the target
         steps = (per_day - 1 - l_idx) + t_idx + 1
     return {"next": l_draw + steps}
+
+
+def incident_number(found, periods, t_idx, today_s, cancelled):
+    """Draw number of today's draw t_idx on a day with changes.
+
+    Counts from the last draw before today (its day's remaining draws are
+    assumed held), then one number per draw of today up to t_idx, skipping
+    draws that are cancelled with their number not used. Today's rows are
+    not used for counting, because a moved draw may have been entered under
+    the slot it was held in.
+    """
+    per_day = max(1, len(periods))
+    before = [f for f in found if f[0][0] < today_s]
+    if before:
+        (l_date, l_idx), l_draw = max(before)
+        base = l_draw + (per_day - 1 - l_idx)
+    else:  # nothing before today: work back from today's earliest row
+        (d, idx), draw = min(found)
+        base = draw - 1 - sum(1 for i in range(idx) if periods[i] not in cancelled)
+    return base + sum(1 for i in range(t_idx + 1) if periods[i] not in cancelled)
 
 
 SOURCES = {
@@ -403,7 +434,57 @@ def extra_values(key, game, settings, state, overrides, today):
     return out
 
 
-def next_draw_id(key, game, settings, state, overrides, today):
+# --------------------------------------------------------------------------
+# Today's changes (draws moved to another time slot, or cancelled)
+# --------------------------------------------------------------------------
+
+PERIOD_NAMES = {"mid_morning": "Morning", "midday": "Midday",
+                "mid_afternoon": "Afternoon", "evening": "Night"}
+DAILY_GAMES = {"pick3": "Pick 3", "playway": "Play Way", "cash4": "Cash 4"}
+
+
+def today_changes_file(settings):
+    return settings.get("today_changes_file", "today_changes.json")
+
+
+def load_today_changes(settings, today):
+    """Changes recorded for today; an older file is ignored (expires at midnight)."""
+    data = load_json(today_changes_file(settings), {}) or {}
+    if data.get("date") != today.isoformat():
+        return []
+    return data.get("changes", [])
+
+
+def save_today_changes(settings, today, changes):
+    write_atomic(today_changes_file(settings),
+                 json.dumps({"date": today.isoformat(), "changes": changes}, indent=2))
+
+
+def describe_change(c):
+    who = "all daily games" if c["games"] == "daily" else DAILY_GAMES.get(c["games"], c["games"])
+    draw = PERIOD_NAMES.get(c["draw"], c["draw"])
+    if c["type"] == "moved":
+        return "%s draw held in the %s slot (%s)" % (
+            draw, PERIOD_NAMES.get(c["slot"], c["slot"]), who)
+    return "%s draw cancelled, number not used (%s)" % (draw, who)
+
+
+def game_slot(game):
+    """(group key e.g. 'pick3', own period e.g. 'mid_morning') or (None, None)."""
+    for src in game.get("sources", []):
+        if src.get("type") == "supabase_slot" and src.get("period"):
+            return game.get("incident_group"), src["period"]
+    return None, None
+
+
+def changes_for(game, changes):
+    group, _ = game_slot(game)
+    if not group:
+        return []
+    return [c for c in changes if c["games"] in ("daily", group)]
+
+
+def next_draw_id(key, game, settings, state, overrides, today, changes=None):
     """Return (next_draw_id, where_it_came_from)."""
     ov = overrides.get(key)
     if (isinstance(ov, dict) and ov.get("date") == today.isoformat()
@@ -411,8 +492,22 @@ def next_draw_id(key, game, settings, state, overrides, today):
         return int(ov["next_draw"]), "override"
 
     increment = int(game.get("increment", 1))
+    mine = changes_for(game, changes or [])
+    sources = game.get("sources", [])
+    if mine:
+        _, slot = game_slot(game)
+        cancelled = [c["draw"] for c in mine if c["type"] == "cancelled"]
+        airs = slot
+        for c in mine:
+            if c["type"] == "moved" and c["slot"] == slot:
+                airs = c["draw"]  # this slot now holds a moved draw
+        if airs in cancelled:
+            return None, "cancelled"
+        # only the database can count around moved/cancelled draws
+        sources = [dict(s, period=airs, cancelled=cancelled, incident=True)
+                   for s in sources if s.get("type") == "supabase_slot"]
     last = None
-    for src in game.get("sources", []):
+    for src in sources:
         kind = src.get("type")
         try:
             last = SOURCES[kind](src, game, settings, today)
@@ -422,13 +517,17 @@ def next_draw_id(key, game, settings, state, overrides, today):
         if last is not None:
             nxt = last["next"] if isinstance(last, dict) else last + increment
             prev = state.get(key, {}).get("next_draw")
-            if prev and nxt < prev:
+            if prev and nxt < prev and not mine:
                 log("  %s: %s gave %d, lower than previous %d - ignored"
                     % (key, kind, nxt, prev))
                 continue
             return nxt, kind
         log("  %s: %s source found no draw number" % (key, kind))
 
+    if mine:  # a stale number would be wrong today: better blank and loud
+        log("  %s: CHECK DRAW ID - draws changed today and the database could "
+            "not be read. Use an override." % key)
+        return None, "none"
     prev = state.get(key, {}).get("next_draw")
     if prev:
         return prev, "cached"
@@ -631,10 +730,14 @@ def run_once(cfg):
     today = dt.date.today()
     date_text = format_date(today, cfg.get("date_format"))
     log("Date text: %s" % date_text)
+    changes = load_today_changes(settings, today)
+    for c in changes:
+        log("TODAY'S CHANGE: " + describe_change(c))
 
     results = {}
     for key, game in games.items():
-        draw, origin = next_draw_id(key, game, settings, state, overrides, today)
+        draw, origin = next_draw_id(key, game, settings, state, overrides, today,
+                                    changes)
         fmt = game.get("draw_format") or settings.get("draw_format") or "{0}"
         draw_text = "" if draw is None else fmt.format(draw)
         results[key] = {"game": game, "Date": date_text, "DRAW_ID": draw_text,
@@ -671,6 +774,112 @@ def run_once(cfg):
     except Exception as e:  # the CSV files are already written
         log("vMix push failed: %s" % e)
     return results
+
+
+def _pick(ask, out, question, options, default=None):
+    """Numbered menu; returns the chosen value. options: [(label, value)]."""
+    while True:
+        out("")
+        out(question)
+        for i, (label, _) in enumerate(options, 1):
+            out("  %d  %s" % (i, label))
+        hint = " [Enter = %d]" % default if default else ""
+        answer = ask("Choose 1-%d%s: " % (len(options), hint)).strip()
+        if not answer and default:
+            answer = str(default)
+        if answer.isdigit() and 1 <= int(answer) <= len(options):
+            return options[int(answer) - 1][1]
+        out("Please type a number from the list.")
+
+
+def _draw_table(cfg, results, out):
+    out("")
+    out("Draw IDs now:        Morning   Midday    Afternoon Night")
+    for group, name in DAILY_GAMES.items():
+        cells = []
+        for per in ("morning", "midday", "afternoon", "night"):
+            draw = (results.get("%s_%s" % (group, per)) or {}).get("draw")
+            cells.append("%-9s" % ("-" if draw is None else draw))
+        out("  %-18s %s" % (name, " ".join(cells)))
+
+
+def fix_today(cfg, ask=input, out=print):
+    """Interactive prompt to record today's moved / cancelled draws."""
+    global _quiet
+    settings = cfg.get("settings", {})
+    today = dt.date.today()
+    slots = [(PERIOD_NAMES[p], p) for p in ("mid_morning", "midday", "mid_afternoon", "evening")]
+    games = [("All daily games (Pick 3, Play Way, Cash 4)", "daily")] + [
+        (name, key) for key, name in DAILY_GAMES.items()]
+
+    def refresh():
+        global _quiet
+        _quiet = True
+        try:
+            results = run_once(cfg)
+        except Exception as e:
+            out("Could not update the titles now: %s" % e)
+            return
+        finally:
+            _quiet = False
+        _draw_table(cfg, results, out)
+
+    out("=" * 62)
+    out("TODAY'S DRAW CHANGES - %s" % format_date(today, cfg.get("date_format")))
+    out("=" * 62)
+    try:
+        while True:
+            changes = load_today_changes(settings, today)
+            out("")
+            out("Changes recorded for today:")
+            for i, c in enumerate(changes, 1):
+                out("  %d. %s" % (i, describe_change(c)))
+            if not changes:
+                out("  none - a normal day")
+            action = _pick(ask, out, "What do you want to do?", [
+                ("A draw is being held in a different time slot", "move"),
+                ("A draw is cancelled (its number is not used)", "cancel"),
+                ("Remove one of the changes above", "remove"),
+                ("Clear all changes (back to a normal day)", "clear"),
+                ("Done", "done")], default=5)
+            if action == "done":
+                break
+            if action == "clear":
+                changes = []
+            elif action == "remove":
+                if not changes:
+                    out("There is nothing to remove.")
+                    continue
+                gone = _pick(ask, out, "Which change should be removed?",
+                             [(describe_change(c), i) for i, c in enumerate(changes)])
+                changes.pop(gone)
+            else:
+                who = _pick(ask, out, "Which games?", games, default=1)
+                if action == "move":
+                    draw = _pick(ask, out, "Which draw is being held late (or early)?", slots)
+                    slot = _pick(ask, out, "In which time slot is it being held now?", slots)
+                else:
+                    draw = _pick(ask, out, "Which draw is cancelled?", slots)
+                    slot = None
+                # one entry per draw and per slot: a new answer replaces older ones
+                changes = [c for c in changes if not (
+                    c["games"] == who and (c["draw"] == draw or
+                                           (slot and c.get("slot") == slot)))]
+                if action == "move" and slot != draw:
+                    changes.append({"games": who, "type": "moved", "draw": draw, "slot": slot})
+                elif action == "cancel":
+                    changes.append({"games": who, "type": "cancelled", "draw": draw})
+                else:
+                    out("That draw is back in its own slot.")
+            save_today_changes(settings, today, changes)
+            out("Saved. The running feeder picks this up within a few seconds.")
+            refresh()
+    except (EOFError, KeyboardInterrupt):
+        out("")
+    finally:
+        _quiet = False
+    out("Load the preset for the time slot you are airing in; its title and "
+        "recording name follow these changes.")
 
 
 def probe(cfg):
@@ -782,6 +991,8 @@ def main():
     ap.add_argument("--loop", type=int, default=0,
                     help="repeat every N seconds (0 = run once)")
     ap.add_argument("--probe", action="store_true")
+    ap.add_argument("--fix-today", action="store_true",
+                    help="record draws moved to another slot or cancelled today")
     args = ap.parse_args()
 
     cfg = load_json(args.config)
@@ -791,10 +1002,20 @@ def main():
     if args.probe:
         probe(cfg)
         return
+    if args.fix_today:
+        fix_today(cfg)
+        return
     filer = RecordingFiler()
     results = {}
     next_refresh = 0.0
+    changes_seen = None
     while True:
+        try:  # refresh at once when today's changes are edited
+            stamp = os.path.getmtime(resolve(today_changes_file(cfg.get("settings", {}))))
+        except OSError:
+            stamp = None
+        if stamp != changes_seen:
+            changes_seen, next_refresh = stamp, 0.0
         if time.time() >= next_refresh:
             try:
                 results = run_once(cfg) or results
@@ -810,7 +1031,7 @@ def main():
         if not args.loop:
             break
         rc = cfg.get("settings", {}).get("recordings") or {}
-        poll = float(rc.get("poll_seconds", 5)) if rc.get("enabled") else args.loop
+        poll = float(rc.get("poll_seconds", 5))
         time.sleep(max(1.0, min(poll, next_refresh - time.time())))
         cfg = load_json(args.config) or cfg  # pick up config edits live
 

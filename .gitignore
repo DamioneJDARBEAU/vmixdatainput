@@ -5,3 +5,4 @@ __pycache__/
 *.tmp
 check_result.txt
 supabase_key.txt
+today_changes.json

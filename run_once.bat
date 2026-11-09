@@ -2,6 +2,7 @@
 rem Updates the vMix title data (date + next draw IDs) one time.
 cd /d "%~dp0"
 call :findpython || goto :eof
+call :askchanges
 %PY% vmix_lotto_data.py
 if errorlevel 1 (
   echo.
@@ -9,6 +10,14 @@ if errorlevel 1 (
 )
 pause
 goto :eof
+
+:askchanges
+rem Before processing: were any draws moved or cancelled today?
+echo.
+choice /C YN /T 15 /D N /M "Any draw changes today (moved or cancelled draws)? No answer in 15 s = No"
+if errorlevel 2 exit /b 0
+%PY% vmix_lotto_data.py --fix-today
+exit /b 0
 
 :findpython
 set "PY="
