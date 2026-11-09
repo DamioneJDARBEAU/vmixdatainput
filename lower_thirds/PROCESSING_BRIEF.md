@@ -47,9 +47,11 @@ Two overlay files that vMix plays with real transparency:
    (alpha) = the brightest channel above the noise floor, and the true colour =
    pixel ÷ alpha (un-premultiply). This keeps glows bright and coloured instead of
    grey, and gives clean, fringe-free edges.
-4. **Clean up.** Coverage below the H.264 noise floor (dark blocky macroblock noise)
-   is set to 0 so the empty area is truly clear. Isolated specks of a few pixels are
-   removed.
+4. **Particles and clean-up.** Small blobs away from the banner are particles. A
+   bright one (confetti) is made solid relative to its own brightness, so a blue
+   piece stays solid blue. A faint one (a distant sparkle) stays light and
+   see-through instead of turning into a dark dot. Coverage below the H.264 noise
+   floor is set to 0, so the empty area is truly clear.
 5. **Combine:** inside the solid mask, alpha = 1 with the original colour; outside it,
    the soft alpha and un-premultiplied colour.
 
