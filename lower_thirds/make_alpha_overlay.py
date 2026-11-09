@@ -11,8 +11,9 @@ See PROCESSING_BRIEF.md for the reasoning. In short, per frame:
     vertically to follow the slide-in;
   * edges: alpha = brightness / brightness of the nearest solid pixel, colour
     un-premultiplied, so edges are clean with no dark fringe;
-  * small particles (confetti, sparkles): alpha relative to the particle's
-    own peak, so a blue confetti piece stays solid blue;
+  * small particles: a bright one (confetti) gets alpha relative to its own
+    peak, so a blue confetti piece stays solid blue; a faint one (a distant
+    sparkle) stays light and see-through instead of turning into a dark dot;
   * glows and other soft light: alpha = brightness above the noise floor,
     colour un-premultiplied ("unmultiply from black").
 
@@ -33,6 +34,8 @@ from scipy import ndimage as ndi
 SOLID_T = 0.10       # brightness that is certainly artwork, not background
 NOISE = 0.015        # H.264 noise floor on the black background
 PARTICLE_AREA = 400  # blobs smaller than this (pixels) outside the banner are particles
+PARTICLE_FULL = 0.5  # a particle this bright is a solid object (confetti); fainter
+                     # ones (distant sparkles) stay light and see-through
 EDGE_BAND = 2        # pixels around the solid area treated as anti-aliased edge
 
 
@@ -142,7 +145,7 @@ def build_alpha(rgb, solid):
         small = np.zeros(n + 1, bool)
         small[1:] = area < PARTICLE_AREA
         pk = np.zeros(n + 1, np.float32)
-        pk[1:] = peak
+        pk[1:] = np.maximum(peak, PARTICLE_FULL)
         grown = ndi.grey_dilation(lab, size=3) * ~near   # include the blob's soft rim
         sel = small[grown] & (grown > 0)
         alpha[sel] = np.maximum(alpha[sel], np.clip(m[sel] / np.maximum(pk[grown[sel]], 0.05), 0, 1))
